@@ -19,7 +19,39 @@ if st.sidebar.button("🔄 Refresh Data"):
     st.session_state.clear()
     st.rerun()
 if st.sidebar.button("🔍 Compare Multiple Stocks"):
-    st.warning("Feature coming soon!")
+    st.session_state["task"]="compare"
+ if st.session_state.get("task") == "compare":
+    selected_stocks = st.sidebar.multiselect("📌 Select Stocks to Compare", stocks, default=["AAPL", "GOOGL"])
+
+    if len(selected_stocks) < 2:
+        st.warning("Please select at least two stocks to compare.")
+    else:
+        # Load data for selected stocks
+        stock_data = {stock: load_data(stock) for stock in selected_stocks}
+
+        # Merge data into one DataFrame
+        merged_df = pd.DataFrame({"Date": stock_data[selected_stocks[0]]["Date"]})
+        for stock in selected_stocks:
+            merged_df[stock] = stock_data[stock]["Close"]
+
+        # Display stock comparison table
+        st.write("### 📜 Stock Comparison Data")
+        st.dataframe(merged_df.head())
+
+        # Line chart for multiple stocks
+        fig_compare = px.line(merged_df, x="Date", y=selected_stocks, title="📈 Stock Price Comparison")
+        st.plotly_chart(fig_compare)
+
+        # Summary statistics
+        stats_df = pd.DataFrame({
+            "Stock": selected_stocks,
+            "Mean Price": [stock_data[stock]["Close"].mean() for stock in selected_stocks],
+            "Max Price": [stock_data[stock]["Close"].max() for stock in selected_stocks],
+            "Min Price": [stock_data[stock]["Close"].min() for stock in selected_stocks],
+        })
+        st.write("### 📊 Stock Comparison Summary")
+        st.dataframe(stats_df)
+   
 if st.sidebar.button("📊 View Market Trends"):
     st.info("Market trend analysis coming soon!")
 if st.sidebar.button("💡 AI Stock Picks"):
