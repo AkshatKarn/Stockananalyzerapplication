@@ -17,7 +17,7 @@ selected_stock = st.sidebar.selectbox("📌 Select a Stock", stocks)
 st.sidebar.header("📊 Stock Selection & Customization")
 if st.sidebar.button("🔄 Refresh Data"):
     st.session_state.clear()
-    st.experimental_rerun()
+    st.rerun()
 if st.sidebar.button("🔍 Compare Multiple Stocks"):
     st.warning("Feature coming soon!")
 if st.sidebar.button("📊 View Market Trends"):
