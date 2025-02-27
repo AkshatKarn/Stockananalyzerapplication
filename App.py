@@ -49,6 +49,15 @@ stats_df = pd.DataFrame({
 st.write("### 📊 Stock Comparison Summary")
 st.dataframe(stats_df)
 
+# Stock Performance Comparison
+st.write("### 📊 Stock Performance Comparison")
+performance_df = pd.DataFrame({
+    "Stock": selected_stocks,
+    "1-Year Return (%)": [(stock_data[stock]["Close"].iloc[-1] - stock_data[stock]["Close"].iloc[0]) / stock_data[stock]["Close"].iloc[0] * 100 for stock in selected_stocks],
+    "Volatility": [stock_data[stock]['Close'].pct_change().std() * np.sqrt(252) for stock in selected_stocks]
+})
+st.dataframe(performance_df)
+
 # Date Range Selection
 st.sidebar.header("📅 Select Date Range")
 df = stock_data[selected_stocks[0]]  # Use the first selected stock for date range reference
@@ -90,39 +99,6 @@ def train_arima(df):
 
 forecast_df = train_arima(df_filtered)
 st.write(f"### 🔮 ARIMA Prediction for {selected_stocks[0]}")
-
-# Volatility Analysis
-st.write("### 📊 Volatility Analysis")
-df_filtered['Volatility'] = df_filtered['Close'].pct_change()
-fig_volatility = px.line(df_filtered, x="Date", y="Volatility", title="Stock Volatility Over Time")
-st.plotly_chart(fig_volatility)
-
-# RSI Analysis
-st.write("### 📊 RSI (Relative Strength Index) Analysis")
-df_filtered['RSI'] = 100 - (100 / (1 + df_filtered['Close'].pct_change().rolling(14).mean()))
-fig_rsi = px.line(df_filtered, x="Date", y="RSI", title="Relative Strength Index (RSI)")
-st.plotly_chart(fig_rsi)
-
-# MACD Analysis
-st.write("### 📈 MACD (Moving Average Convergence Divergence)")
-df_filtered['EMA_12'] = df_filtered['Close'].ewm(span=12, adjust=False).mean()
-df_filtered['EMA_26'] = df_filtered['Close'].ewm(span=26, adjust=False).mean()
-df_filtered['MACD'] = df_filtered['EMA_12'] - df_filtered['EMA_26']
-fig_macd = px.line(df_filtered, x="Date", y="MACD", title="MACD Indicator")
-st.plotly_chart(fig_macd)
-
-# Support & Resistance Levels
-st.write("### 📉 Support & Resistance Levels")
-resistance = df_filtered['High'].max()
-support = df_filtered['Low'].min()
-st.write(f"Resistance Level: {resistance}")
-st.write(f"Support Level: {support}")
-
-# Intraday Price Movement
-st.write("### 📊 Intraday Price Movement")
-df_filtered['Intraday Change'] = df_filtered['Close'] - df_filtered['Open']
-fig_intraday = px.bar(df_filtered, x="Date", y="Intraday Change", title="Intraday Price Changes")
-st.plotly_chart(fig_intraday)
 
 # AI-Powered Stock Recommendations
 st.write("### 🤖 AI-Powered Stock Recommendations")
