@@ -104,13 +104,24 @@ fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower
 st.plotly_chart(fig_ma)
 
 def train_arima(df):
-    model = ARIMA(df["Close"], order=(5,1,0))
-    model_fit = model.fit()
-    forecast = model_fit.forecast(steps=180)
-    future_dates = pd.date_range(start=df["Date"].iloc[-1], periods=181, freq="D")[1:]
-    return pd.DataFrame({"Date": future_dates, "Predicted Price": forecast})
+    if len(df) < 10:  # Ensure you have enough data points
+        raise ValueError("Not enough data points to fit ARIMA model.")
+    
+    model = ARIMA(df, order=(1, 1, 1))  
+    try:
+        model_fit = model.fit()
+    except IndexError:
+        raise ValueError("ARIMA model failed due to insufficient data.")
+    
+    return model_fit
 
-forecast_df = train_arima(df_filtered)
+st.write(f"Number of data points: {len(df_filtered)}")
+
+if len(df_filtered) < 10:
+    st.error("Not enough data to run ARIMA prediction.")
+else:
+    forecast_df = train_arima(df_filtered)
+
 st.write(f"### 🔮 ARIMA Prediction for {selected_stock}")
 fig_pred = px.line(forecast_df, x="Date", y="Predicted Price", title="Predicted Stock Prices", color_discrete_sequence=["red"])
 st.plotly_chart(fig_pred)
