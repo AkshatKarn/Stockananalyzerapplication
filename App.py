@@ -20,7 +20,7 @@ if st.sidebar.button("🔄 Refresh Data"):
     st.rerun()
 if st.sidebar.button("🔍 Compare Multiple Stocks"):
     st.session_state["task"]="compare"
- if st.session_state.get("task") == "compare":
+if st.session_state.get("task") == "compare":
     selected_stocks = st.sidebar.multiselect("📌 Select Stocks to Compare", stocks, default=["AAPL", "GOOGL"])
 
     if len(selected_stocks) < 2:
