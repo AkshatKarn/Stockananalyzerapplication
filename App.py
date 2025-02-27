@@ -5,8 +5,16 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.express as px
 import seaborn as sns
+import yfinance as yf 
 from statsmodels.tsa.arima.model import ARIMA
 
+@st.cache_data
+def load_data(stock):
+    """Fetches stock data from Yahoo Finance for the past year."""
+    data = yf.download(stock, period="1y")
+    data.reset_index(inplace=True)  # Ensure Date is a column
+    return data
+    
 st.set_page_config(page_title="📊 AI-Powered Stock Analyzer", layout="wide")
 st.title("📊 AI-Powered Stock Analyzer")
 st.write("Analyze stocks, visualize trends, and get AI-driven insights!")
