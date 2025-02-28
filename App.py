@@ -108,3 +108,10 @@ elif forecast_df.forecast(steps=1)[0] < df_filtered['Close'].iloc[-1] * 0.95:
     st.error("📉 **SELL:** Expected downward trend.")
 else:
     st.warning("⚖ **HOLD:** Market stable.")
+
+# Add Buttons
+st.sidebar.button("📊 Compare Stocks")
+st.sidebar.button("📈 View Trends")
+st.sidebar.button("🔮 AI Insights")
+st.sidebar.button("📉 Risk Analysis")
+st.sidebar.button("📜 Generate Report")
