@@ -50,13 +50,14 @@ st.write("### 📊 Stock Comparison Summary")
 st.dataframe(stats_df)
 
 # Stock Performance Comparison
-st.write("### 📊 Stock Performance Comparison")
-performance_df = pd.DataFrame({
-    "Stock": selected_stocks,
-    "1-Year Return (%)": [(stock_data[stock]["Close"].iloc[-1] - stock_data[stock]["Close"].iloc[0]) / stock_data[stock]["Close"].iloc[0] * 100 for stock in selected_stocks],
-    "Volatility": [stock_data[stock]['Close'].pct_change().std() * np.sqrt(252) for stock in selected_stocks]
-})
-st.dataframe(performance_df)
+def show_comparison():
+    st.write("### 📊 Stock Performance Comparison")
+    performance_df = pd.DataFrame({
+        "Stock": selected_stocks,
+        "1-Year Return (%)": [(stock_data[stock]["Close"].iloc[-1] - stock_data[stock]["Close"].iloc[0]) / stock_data[stock]["Close"].iloc[0] * 100 for stock in selected_stocks],
+        "Volatility": [stock_data[stock]['Close'].pct_change().std() * np.sqrt(252) for stock in selected_stocks]
+    })
+    st.dataframe(performance_df)
 
 # Date Range Selection
 st.sidebar.header("📅 Select Date Range")
@@ -71,20 +72,21 @@ st.write(f"### 📜 Historical Data for {selected_stocks[0]}")
 st.dataframe(df_filtered.head())
 
 # Stock Price Visualization
-fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
-st.plotly_chart(fig)
+def show_trends():
+    fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
+    st.plotly_chart(fig)
 
-fig_candle = go.Figure(data=[go.Candlestick(x=df_filtered["Date"], open=df_filtered["Open"],
-    high=df_filtered["High"], low=df_filtered["Low"], close=df_filtered["Close"], name="Candlestick")])
-st.plotly_chart(fig_candle)
+    fig_candle = go.Figure(data=[go.Candlestick(x=df_filtered["Date"], open=df_filtered["Open"],
+        high=df_filtered["High"], low=df_filtered["Low"], close=df_filtered["Close"], name="Candlestick")])
+    st.plotly_chart(fig_candle)
 
-st.write("### 📊 Moving Averages & Bollinger Bands")
-df_filtered['SMA_20'] = df_filtered['Close'].rolling(window=20).mean()
-df_filtered['Upper_BB'] = df_filtered['SMA_20'] + 2 * df_filtered['Close'].rolling(window=20).std()
-df_filtered['Lower_BB'] = df_filtered['SMA_20'] - 2 * df_filtered['Close'].rolling(window=20).std()
-fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
-                  labels={"value": "Stock Price"}, title="Moving Averages & Bollinger Bands")
-st.plotly_chart(fig_ma)
+    st.write("### 📊 Moving Averages & Bollinger Bands")
+    df_filtered['SMA_20'] = df_filtered['Close'].rolling(window=20).mean()
+    df_filtered['Upper_BB'] = df_filtered['SMA_20'] + 2 * df_filtered['Close'].rolling(window=20).std()
+    df_filtered['Lower_BB'] = df_filtered['SMA_20'] - 2 * df_filtered['Close'].rolling(window=20).std()
+    fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
+                      labels={"value": "Stock Price"}, title="Moving Averages & Bollinger Bands")
+    st.plotly_chart(fig_ma)
 
 # ARIMA Prediction Function
 def train_arima(df):
@@ -97,21 +99,22 @@ def train_arima(df):
         raise ValueError("ARIMA model failed due to insufficient data.")
     return model_fit
 
-forecast_df = train_arima(df_filtered)
-st.write(f"### 🔮 ARIMA Prediction for {selected_stocks[0]}")
+def show_insights():
+    forecast_df = train_arima(df_filtered)
+    st.write(f"### 🔮 ARIMA Prediction for {selected_stocks[0]}")
+    if forecast_df.forecast(steps=1)[0] > df_filtered['Close'].iloc[-1] * 1.05:
+        st.success("📈 **BUY:** Expected upward trend.")
+    elif forecast_df.forecast(steps=1)[0] < df_filtered['Close'].iloc[-1] * 0.95:
+        st.error("📉 **SELL:** Expected downward trend.")
+    else:
+        st.warning("⚖ **HOLD:** Market stable.")
 
-# AI-Powered Stock Recommendations
-st.write("### 🤖 AI-Powered Stock Recommendations")
-if forecast_df.forecast(steps=1)[0] > df_filtered['Close'].iloc[-1] * 1.05:
-    st.success("📈 **BUY:** Expected upward trend.")
-elif forecast_df.forecast(steps=1)[0] < df_filtered['Close'].iloc[-1] * 0.95:
-    st.error("📉 **SELL:** Expected downward trend.")
-else:
-    st.warning("⚖ **HOLD:** Market stable.")
-
-# Add Buttons
-st.sidebar.button("📊 Compare Stocks")
-st.sidebar.button("📈 View Trends")
-st.sidebar.button("🔮 AI Insights")
-st.sidebar.button("📉 Risk Analysis")
-st.sidebar.button("📜 Generate Report")
+# Buttons with Functionality
+if st.sidebar.button("📊 Compare Stocks"):
+    show_comparison()
+if st.sidebar.button("📈 View Trends"):
+    show_trends()
+if st.sidebar.button("🔮 AI Insights"):
+    show_insights()
+if st.sidebar.button("📜 Generate Report"):
+    st.write("Report generation feature coming soon!")
