@@ -11,7 +11,7 @@ from statsmodels.tsa.arima.model import ARIMA
 def load_data(stock):
     """Fetches stock data from Yahoo Finance for the past year."""
     data = yf.download(stock, period="1y")
-    if data.empty:
+    if data.empty:  # Check if no data was retrieved
         return None
     data.reset_index(inplace=True)
     return data
@@ -22,7 +22,8 @@ st.title("📊 AI-Powered Stock Analyzer")
 st.write("Analyze stocks, visualize trends, and get AI-driven insights!")
 
 # Stock selection
-stocks = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "NFLX", "NVDA", "META", "IBM", "INTC", "AMD", "BABA", "ORCL", "PYPL", "DIS", "PEP", "KO", "CSCO", "UBER", "LYFT"]
+stocks = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "NFLX", "NVDA", "META", "IBM", "INTC",
+          "AMD", "BABA", "ORCL", "PYPL", "DIS", "PEP", "KO", "CSCO", "UBER", "LYFT"]
 selected_stocks = st.sidebar.multiselect("📌 Select Stocks", stocks, default=["AAPL"])
 
 # Sidebar refresh button
@@ -31,17 +32,21 @@ if st.sidebar.button("🔄 Refresh Data"):
     st.session_state.clear()
     st.rerun()
 
+# Ensure stocks are selected
 if not selected_stocks:
     st.error("No stocks selected. Please choose at least one stock.")
     st.stop()
 
+# Fetch stock data
 stock_data = {stock: load_data(stock) for stock in selected_stocks}
-stock_data = {k: v for k, v in stock_data.items() if v is not None}
+stock_data = {k: v for k, v in stock_data.items() if v is not None}  # Remove None values
 
+# Ensure at least one valid stock is available
 if not stock_data:
-    st.error("Failed to fetch stock data. Please check stock symbols.")
+    st.error("Failed to fetch stock data. Please check your internet connection or stock symbols.")
     st.stop()
 
+# Ensure at least one stock has data before proceeding
 first_stock = next(iter(stock_data), None)
 if first_stock and "Date" in stock_data[first_stock]:
     merged_df = pd.DataFrame({"Date": stock_data[first_stock]["Date"]})
@@ -52,12 +57,15 @@ else:
     st.error("Stock data is unavailable. Please check the data source.")
     st.stop()
 
+# Display stock comparison table
 st.write("### 📜 Stock Comparison Data")
 st.dataframe(merged_df.head())
 
+# Line chart for multiple stocks
 fig_compare = px.line(merged_df, x="Date", y=selected_stocks, title="📈 Stock Price Comparison")
 st.plotly_chart(fig_compare)
 
+# Summary statistics
 stats_df = pd.DataFrame({
     "Stock": selected_stocks,
     "Mean Price": [stock_data[stock]["Close"].mean() for stock in selected_stocks if stock in stock_data],
@@ -67,40 +75,39 @@ stats_df = pd.DataFrame({
 st.write("### 📊 Stock Comparison Summary")
 st.dataframe(stats_df)
 
-def show_comparison():
-    st.write("### 📊 Stock Performance Comparison")
-    performance_df = pd.DataFrame({
-        "Stock": selected_stocks,
-        "1-Year Return (%)": [(stock_data[stock]["Close"].iloc[-1] - stock_data[stock]["Close"].iloc[0]) / stock_data[stock]["Close"].iloc[0] * 100 for stock in selected_stocks if stock in stock_data],
-        "Volatility": [stock_data[stock]['Close'].pct_change().std() * np.sqrt(252) for stock in selected_stocks if stock in stock_data]
-    })
-    st.dataframe(performance_df)
-
+# Date Range Selection
 st.sidebar.header("📅 Select Date Range")
-df = stock_data[first_stock]
+df = stock_data[first_stock]  # Use the first available stock for reference
 start_date = st.sidebar.date_input("Start Date", df["Date"].min())
 end_date = st.sidebar.date_input("End Date", df["Date"].max())
+
 start_date, end_date = pd.to_datetime(start_date), pd.to_datetime(end_date)
 df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)]
 
 st.write(f"### 📜 Historical Data for {first_stock}")
 st.dataframe(df_filtered.head())
 
+# Stock Price Visualization
 def show_trends():
     if df_filtered.empty:
         st.error("No data available for the selected date range.")
         return
     fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
     st.plotly_chart(fig)
-    fig_candle = go.Figure(data=[go.Candlestick(x=df_filtered["Date"], open=df_filtered["Open"], high=df_filtered["High"], low=df_filtered["Low"], close=df_filtered["Close"], name="Candlestick")])
+
+    fig_candle = go.Figure(data=[go.Candlestick(x=df_filtered["Date"], open=df_filtered["Open"],
+        high=df_filtered["High"], low=df_filtered["Low"], close=df_filtered["Close"], name="Candlestick")])
     st.plotly_chart(fig_candle)
+
     st.write("### 📊 Moving Averages & Bollinger Bands")
     df_filtered['SMA_20'] = df_filtered['Close'].rolling(window=20).mean()
     df_filtered['Upper_BB'] = df_filtered['SMA_20'] + 2 * df_filtered['Close'].rolling(window=20).std()
     df_filtered['Lower_BB'] = df_filtered['SMA_20'] - 2 * df_filtered['Close'].rolling(window=20).std()
-    fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"], labels={"value": "Stock Price"}, title="Moving Averages & Bollinger Bands")
+    fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
+                      labels={"value": "Stock Price"}, title="Moving Averages & Bollinger Bands")
     st.plotly_chart(fig_ma)
 
+# ARIMA Prediction Function
 def train_arima(df):
     if len(df) < 10:
         raise ValueError("Not enough data points to fit ARIMA model.")
@@ -112,25 +119,23 @@ def train_arima(df):
     return model_fit
 
 def show_insights():
-    try:
-        forecast_df = train_arima(df_filtered)
-        st.write(f"### 🔮 ARIMA Prediction for {first_stock}")
-        predicted_price = forecast_df.forecast(steps=1)[0]
-        if predicted_price > df_filtered['Close'].iloc[-1] * 1.05:
-            st.success("📈 **BUY:** Expected upward trend.")
-        elif predicted_price < df_filtered['Close'].iloc[-1] * 0.95:
-            st.error("📉 **SELL:** Expected downward trend.")
-        else:
-            st.warning("⚖ **HOLD:** Market stable.")
-    except ValueError as e:
-        st.error(f"Prediction Error: {e}")
+    if df_filtered.empty:
+        st.error("Not enough data for AI insights.")
+        return
+    forecast_df = train_arima(df_filtered)
+    st.write(f"### 🔮 ARIMA Prediction for {first_stock}")
+    prediction = forecast_df.forecast(steps=1)[0]
+    if prediction > df_filtered['Close'].iloc[-1] * 1.05:
+        st.success("📈 **BUY:** Expected upward trend.")
+    elif prediction < df_filtered['Close'].iloc[-1] * 0.95:
+        st.error("📉 **SELL:** Expected downward trend.")
+    else:
+        st.warning("⚖ **HOLD:** Market stable.")
 
-if st.sidebar.button("📊 Compare Stocks"):
-    show_comparison()
+# Buttons with Functionality
 if st.sidebar.button("📈 View Trends"):
     show_trends()
 if st.sidebar.button("🔮 AI Insights"):
     show_insights()
 if st.sidebar.button("📜 Generate Report"):
     st.write("Report generation feature coming soon!")
-
