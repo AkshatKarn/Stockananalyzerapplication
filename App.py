@@ -107,7 +107,7 @@ st.write(f"### 📜 Historical Data for {first_stock}")
 st.dataframe(df_filtered.head())
 
 # Stock Price Visualization
-def show_trends():
+def show_trends(df_filtered):
     # Debugging: Check if df_filtered is empty or missing columns
     st.write("df_filtered preview:", df_filtered)
     st.write("Columns available:", df_filtered.columns)
@@ -158,8 +158,12 @@ def train_arima(df):
         raise ValueError("ARIMA model failed due to insufficient data.")
     return model_fit
 
-def show_insights():
+def show_insights(df_filtered):
     # Display filtered data for debugging
+    if df_filtered.empty:
+        st.error("No data available for the selected date range.")
+        return
+    
     st.write("### Filtered Data Preview for ARIMA Prediction")
     st.dataframe(df_filtered.tail())  # Display the last few rows for debugging
     
@@ -188,8 +192,9 @@ def show_insights():
 if st.sidebar.button("📊 Compare Stocks"):
     show_comparison()
 if st.sidebar.button("📈 View Trends"):
-    show_trends()
+    show_trends(df_filtered)
 if st.sidebar.button("🔮 AI Insights"):
-    show_insights()
+    show_insights(df_filtered)
 if st.sidebar.button("📜 Generate Report"):
     st.write("Report generation feature coming soon!")
+
