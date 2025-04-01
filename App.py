@@ -97,53 +97,45 @@ start_date = st.sidebar.date_input("Start Date", df["Date"].min())
 end_date = st.sidebar.date_input("End Date", df["Date"].max())
 
 start_date, end_date = pd.to_datetime(start_date), pd.to_datetime(end_date)
-df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)].copy()
 
-if df_filtered.empty or "Close" not in df_filtered.columns:
+# Filter the data for selected date range for each stock
+merged_df_filtered = pd.DataFrame({"Date": stock_data[first_stock]["Date"]})
+for stock in selected_stocks:
+    if stock in stock_data:
+        stock_filtered = stock_data[stock][(stock_data[stock]["Date"] >= start_date) & (stock_data[stock]["Date"] <= end_date)]
+        merged_df_filtered[stock] = stock_filtered["Close"]
+
+if merged_df_filtered.empty or "Close" not in merged_df_filtered.columns:
     st.error("No data available for the selected date range.")
     st.stop()
 
 st.write(f"### 📜 Historical Data for {first_stock}")
-st.dataframe(df_filtered.head())
+st.dataframe(merged_df_filtered.head())
 
 # Stock Price Visualization
 def show_trends():
-    # Debugging: Check if df_filtered is empty or missing columns
-    st.write("df_filtered preview:", df_filtered)
-    st.write("Columns available:", df_filtered.columns)
-
-    # Check if df_filtered is empty
-    if df_filtered.empty:
-        st.error("No data available for the selected date range. Please adjust the dates.")
-        return
-
-    # Ensure the 'Close' column exists
-    if "Close" not in df_filtered.columns:
-        st.error("Stock data is missing the 'Close' column. Please check your dataset.")
-        return
-
     # Line Chart: Stock Price Over Time
-    fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
+    fig = px.line(merged_df_filtered, x="Date", y=selected_stocks, title="Stock Price Over Time", color_discrete_sequence=["blue"])
     st.plotly_chart(fig)
 
     # Candlestick Chart
     fig_candle = go.Figure(data=[go.Candlestick(
-        x=df_filtered["Date"], 
-        open=df_filtered["Open"],
-        high=df_filtered["High"], 
-        low=df_filtered["Low"], 
-        close=df_filtered["Close"], 
+        x=merged_df_filtered["Date"], 
+        open=merged_df_filtered["Open"],
+        high=merged_df_filtered["High"], 
+        low=merged_df_filtered["Low"], 
+        close=merged_df_filtered["Close"], 
         name="Candlestick"
     )])
     st.plotly_chart(fig_candle)
 
     # Moving Averages & Bollinger Bands
     st.write("### 📊 Moving Averages & Bollinger Bands")
-    df_filtered['SMA_20'] = df_filtered['Close'].rolling(window=20).mean()
-    df_filtered['Upper_BB'] = df_filtered['SMA_20'] + 2 * df_filtered['Close'].rolling(window=20).std()
-    df_filtered['Lower_BB'] = df_filtered['SMA_20'] - 2 * df_filtered['Close'].rolling(window=20).std()
+    merged_df_filtered['SMA_20'] = merged_df_filtered['Close'].rolling(window=20).mean()
+    merged_df_filtered['Upper_BB'] = merged_df_filtered['SMA_20'] + 2 * merged_df_filtered['Close'].rolling(window=20).std()
+    merged_df_filtered['Lower_BB'] = merged_df_filtered['SMA_20'] - 2 * merged_df_filtered['Close'].rolling(window=20).std()
 
-    fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
+    fig_ma = px.line(merged_df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
                       labels={"value": "Stock Price"}, title="Moving Averages & Bollinger Bands")
     st.plotly_chart(fig_ma)
 
@@ -160,22 +152,6 @@ def train_arima(df):
     return model_fit
 
 def show_insights():
-    forecast_df = train_arima(df_filtered)
+    forecast_df = train_arima(merged_df_filtered)
     st.write(f"### 🔮 ARIMA Prediction for {first_stock}")
-    if forecast_df.forecast(steps=1)[0] > df_filtered['Close'].iloc[-1] * 1.05:
-        st.success("📈 **BUY:** Expected upward trend.")
-    elif forecast_df.forecast(steps=1)[0] < df_filtered['Close'].iloc[-1] * 0.95:
-        st.error("📉 **SELL:** Expected downward trend.")
-    else:
-        st.warning("⚖ **HOLD:** Market stable.")
-
-# Buttons with Functionality
-if st.sidebar.button("📊 Compare Stocks"):
-    show_comparison()
-if st.sidebar.button("📈 View Trends"):
-    show_trends()
-if st.sidebar.button("🔮 AI Insights"):
-    show_insights()
-if st.sidebar.button("📜 Generate Report"):
-    st.write("Report generation feature coming soon!")
-
+    if forecast_df.forecast(steps=1)[0] > merged_df_filtered['_
