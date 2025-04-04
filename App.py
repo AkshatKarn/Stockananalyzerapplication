@@ -108,44 +108,24 @@ st.dataframe(df_filtered.head())
 
 # Stock Price Visualization
 def show_trends(df_filtered):
-    # Debugging: Check if df_filtered is empty or missing columns
-    st.write("df_filtered preview:", df_filtered)
-    st.write("Columns available:", df_filtered.columns)
+    import plotly.express as px
+    import streamlit as st
 
-    # Check if df_filtered is empty
     if df_filtered.empty:
-        st.error("No data available for the selected date range. Please adjust the dates.")
+        st.warning("No data available to display trends. Please check your date range or stock selection.")
         return
 
-    # Ensure the 'Close' column exists
-    if "Close" not in df_filtered.columns:
-        st.error("Stock data is missing the 'Close' column. Please check your dataset.")
+    if "Date" not in df_filtered.columns or "Close" not in df_filtered.columns:
+        st.error("Missing required columns in data. Make sure 'Date' and 'Close' columns are present.")
+        st.write("Columns in DataFrame:", df_filtered.columns.tolist())
         return
 
-    # Line Chart: Stock Price Over Time
-    fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
-    st.plotly_chart(fig)
-
-    # Candlestick Chart
-    fig_candle = go.Figure(data=[go.Candlestick(
-        x=df_filtered["Date"], 
-        open=df_filtered["Open"],
-        high=df_filtered["High"], 
-        low=df_filtered["Low"], 
-        close=df_filtered["Close"], 
-        name="Candlestick"
-    )])
-    st.plotly_chart(fig_candle)
-
-    # Moving Averages & Bollinger Bands
-    st.write("### 📊 Moving Averages & Bollinger Bands")
-    df_filtered['SMA_20'] = df_filtered['Close'].rolling(window=20).mean()
-    df_filtered['Upper_BB'] = df_filtered['SMA_20'] + 2 * df_filtered['Close'].rolling(window=20).std()
-    df_filtered['Lower_BB'] = df_filtered['SMA_20'] - 2 * df_filtered['Close'].rolling(window=20).std()
-
-    fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
-                      labels={"value": "Stock Price"}, title="Moving Averages & Bollinger Bands")
-    st.plotly_chart(fig_ma)
+    try:
+        df_filtered["Date"] = pd.to_datetime(df_filtered["Date"])  # Ensure correct datetime format
+        fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
+        st.plotly_chart(fig)
+    except Exception as e:
+        st.error(f"An error occurred while plotting: {e}")
 
 # ARIMA Prediction Function
 def train_arima(df):
