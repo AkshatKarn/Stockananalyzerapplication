@@ -82,12 +82,22 @@ st.dataframe(stats_df)
 # Stock Performance Comparison
 def show_comparison():
     st.write("### 📊 Stock Performance Comparison")
-    performance_df = pd.DataFrame({
-        "Stock": selected_stocks,
-        "1-Year Return (%)": [(stock_data[stock]["Close"].iloc[-1] - stock_data[stock]["Close"].iloc[0]) /
-                              stock_data[stock]["Close"].iloc[0] * 100 for stock in selected_stocks if stock in stock_data],
-        "Volatility": [stock_data[stock]['Close'].pct_change().std() * np.sqrt(252) for stock in selected_stocks if stock in stock_data]
-    })
+    
+    performance_data = []
+
+    for stock in selected_stocks:
+        if stock in stock_data and not stock_data[stock].empty:
+            close_prices = stock_data[stock]["Close"]
+            one_year_return = ((close_prices.iloc[-1] - close_prices.iloc[0]) / close_prices.iloc[0]) * 100
+            volatility = close_prices.pct_change().std() * np.sqrt(252)
+
+            performance_data.append({
+                "Stock": stock,
+                "1-Year Return (%)": round(one_year_return, 2),
+                "Volatility": round(volatility, 4)
+            })
+
+    performance_df = pd.DataFrame(performance_data)
     st.dataframe(performance_df)
 
 # Date Range Selection
