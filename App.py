@@ -82,22 +82,36 @@ st.dataframe(stats_df)
 # Stock Performance Comparison
 def show_comparison():
     st.write("### 📊 Stock Performance Comparison")
-    
-    performance_data = []
 
+    rows = []
     for stock in selected_stocks:
         if stock in stock_data and not stock_data[stock].empty:
-            close_prices = stock_data[stock]["Close"]
-            one_year_return = ((close_prices.iloc[-1] - close_prices.iloc[0]) / close_prices.iloc[0]) * 100
-            volatility = close_prices.pct_change().std() * np.sqrt(252)
+            close_series = stock_data[stock]["Close"]
 
-            performance_data.append({
+            # Extract first and last close prices
+            start_price = close_series.iloc[0]
+            end_price = close_series.iloc[-1]
+
+            # Calculate return and volatility
+            one_year_return = ((end_price - start_price) / start_price) * 100
+            volatility = close_series.pct_change().std() * np.sqrt(252)
+
+            # Make sure they are scalar float values (not Series)
+            one_year_return = float(one_year_return)
+            volatility = float(volatility)
+
+            rows.append({
                 "Stock": stock,
                 "1-Year Return (%)": round(one_year_return, 2),
                 "Volatility": round(volatility, 4)
             })
+        else:
+            st.warning(f"Data for {stock} not available or empty.")
 
-    performance_df = pd.DataFrame(performance_data)
+    # Build DataFrame with clean scalar values
+    performance_df = pd.DataFrame(rows)
+
+    # Show in Streamlit
     st.dataframe(performance_df)
 
 # Date Range Selection
