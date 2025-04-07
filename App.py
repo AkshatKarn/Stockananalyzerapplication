@@ -60,11 +60,46 @@ if first_stock and "Date" in stock_data[first_stock]:
             merged_df[stock] = stock_data[stock]["Close"]
 
     # ✅ Flatten columns (in case they're MultiIndex)
-    if isinstance(merged_df.columns, pd.MultiIndex):
-        merged_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in merged_df.columns]
-else:
-    st.error("Stock data is unavailable. Please check the data source.")
-    st.stop()
+    if isinstance(df_filtered.columns, pd.MultiIndex):
+        df_filtered.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in df_filtered.columns]
+    else:
+        st.error("Stock data is unavailable. Please check the data source.")
+        st.stop()
+    
+def show_trends(df_filtered):
+    import plotly.express as px
+    import streamlit as st
+
+    if df_filtered.empty:
+        st.warning("No data available to display trends. Please check your date range or stock selection.")
+        return
+
+    # Flatten MultiIndex if present
+    if isinstance(df_filtered.columns, pd.MultiIndex):
+        df_filtered.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in df_filtered.columns]
+
+    # Debug: check column names
+    st.write("📌 DataFrame Columns:", df_filtered.columns.tolist())
+
+    # Try to detect the correct column names
+    date_col = [col for col in df_filtered.columns if "Date" in col][0]
+    close_col = [col for col in df_filtered.columns if "Close" in col and first_stock in col]
+    
+    if not close_col:
+        close_col = [col for col in df_filtered.columns if col.lower() == "close"]
+
+    if not close_col:
+        st.error("Couldn't find the correct 'Close' column to plot.")
+        return
+
+    close_col = close_col[0]  # Get the first match
+
+    try:
+        df_filtered[date_col] = pd.to_datetime(df_filtered[date_col])
+        fig = px.line(df_filtered, x=date_col, y=close_col, title="📉 Stock Price Trend")
+        st.plotly_chart(fig)
+    except Exception as e:
+        st.error(f"An error occurred while plotting: {e}")
 
 
 # Display stock comparison table
