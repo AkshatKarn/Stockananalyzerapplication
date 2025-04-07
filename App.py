@@ -51,15 +51,21 @@ st.write("Selected Stocks:", selected_stocks)
 st.write("Available Stock Data:", list(stock_data.keys()))
 
 # Ensure at least one stock has data before proceeding
+# Ensure at least one stock has data before proceeding
 first_stock = next(iter(stock_data), None)
 if first_stock and "Date" in stock_data[first_stock]:
     merged_df = pd.DataFrame({"Date": stock_data[first_stock]["Date"]})
     for stock in selected_stocks:
         if stock in stock_data:
             merged_df[stock] = stock_data[stock]["Close"]
+
+    # ✅ Flatten columns (in case they're MultiIndex)
+    if isinstance(merged_df.columns, pd.MultiIndex):
+        merged_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in merged_df.columns]
 else:
     st.error("Stock data is unavailable. Please check the data source.")
     st.stop()
+
 
 # Display stock comparison table
 st.write("### 📜 Stock Comparison Data")
