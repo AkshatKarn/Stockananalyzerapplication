@@ -70,14 +70,16 @@ fig_compare = px.line(merged_df, x="Date", y=selected_stocks, title="📈 Stock 
 st.plotly_chart(fig_compare)
 
 # Summary statistics
+# Summary statistics
 stats_df = pd.DataFrame({
     "Stock": selected_stocks,
-    "Mean Price": [stock_data[stock]["Close"].mean() for stock in selected_stocks if stock in stock_data],
-    "Max Price": [stock_data[stock]["Close"].max() for stock in selected_stocks if stock in stock_data],
-    "Min Price": [stock_data[stock]["Close"].min() for stock in selected_stocks if stock in stock_data],
+    "Mean Price": [float(stock_data[stock]["Close"].mean()) for stock in selected_stocks if stock in stock_data],
+    "Max Price": [float(stock_data[stock]["Close"].max()) for stock in selected_stocks if stock in stock_data],
+    "Min Price": [float(stock_data[stock]["Close"].min()) for stock in selected_stocks if stock in stock_data],
 })
 st.write("### 📊 Stock Comparison Summary")
 st.dataframe(stats_df)
+
 
 # Stock Performance Comparison
 def show_comparison():
