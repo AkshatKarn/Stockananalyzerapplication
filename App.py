@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -15,18 +16,18 @@ def load_data(stock):
     return data
 
 # Streamlit UI setup
-st.set_page_config(page_title="\ud83d\udcca AI-Powered Stock Analyzer", layout="wide")
-st.title("\ud83d\udcca AI-Powered Stock Analyzer")
+st.set_page_config(page_title="📊 AI-Powered Stock Analyzer", layout="wide")
+st.title("📊 AI-Powered Stock Analyzer")
 st.write("Analyze stocks, visualize trends, and get AI-driven insights!")
 
 # Stock selection
 stocks = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "NFLX", "NVDA", "META", "IBM", "INTC",
           "AMD", "BABA", "ORCL", "PYPL", "DIS", "PEP", "KO", "CSCO", "UBER", "LYFT"]
-selected_stocks = st.sidebar.multiselect("\ud83d\udccc Select Stocks", stocks, default=["AAPL"])
+selected_stocks = st.sidebar.multiselect("📌 Select Stocks", stocks, default=["AAPL"])
 
 # Sidebar refresh button
-st.sidebar.header("\ud83d\udcca Stock Selection & Customization")
-if st.sidebar.button("\ud83d\udd04 Refresh Data"):
+st.sidebar.header("📊 Stock Selection & Customization")
+if st.sidebar.button("🔄 Refresh Data"):
     st.session_state.clear()
     st.rerun()
 
@@ -56,11 +57,11 @@ else:
     st.stop()
 
 # Display stock comparison table
-st.write("### \ud83d\udcdc Stock Comparison Data")
+st.write("### 📋 Stock Comparison Data")
 st.dataframe(merged_df.head())
 
 # Line chart for multiple stocks
-fig_compare = px.line(merged_df, x="Date", y=selected_stocks, title="\ud83d\udcc8 Stock Price Comparison")
+fig_compare = px.line(merged_df, x="Date", y=selected_stocks, title="📈 Stock Price Comparison")
 st.plotly_chart(fig_compare)
 
 # Summary statistics
@@ -70,12 +71,12 @@ stats_df = pd.DataFrame({
     "Max Price": [float(stock_data[stock]["Close"].max()) for stock in selected_stocks if stock in stock_data],
     "Min Price": [float(stock_data[stock]["Close"].min()) for stock in selected_stocks if stock in stock_data],
 })
-st.write("### \ud83d\udcca Stock Comparison Summary")
+st.write("### 📊 Stock Comparison Summary")
 st.dataframe(stats_df)
 
 # Stock Performance Comparison
 def show_comparison():
-    st.write("### \ud83d\udcca Stock Performance Comparison")
+    st.write("### 📊 Stock Performance Comparison")
     rows = []
     for stock in selected_stocks:
         if stock in stock_data and not stock_data[stock].empty:
@@ -96,7 +97,7 @@ def show_comparison():
     st.dataframe(performance_df)
 
 # Date Range Selection
-st.sidebar.header("\ud83d\uddd5 Select Date Range")
+st.sidebar.header("🗕 Select Date Range")
 df = stock_data[first_stock]
 start_date = st.sidebar.date_input("Start Date", df["Date"].min())
 end_date = st.sidebar.date_input("End Date", df["Date"].max())
@@ -107,7 +108,7 @@ if df_filtered.empty or "Close" not in df_filtered.columns:
     st.error("No data available for the selected date range.")
     st.stop()
 
-st.write(f"### \ud83d\udcdc Historical Data for {first_stock}")
+st.write(f"### 📋 Historical Data for {first_stock}")
 st.dataframe(df_filtered.head())
 
 # Stock Price Visualization
@@ -126,7 +127,6 @@ def show_trends(df_filtered):
         st.error(f"An error occurred while plotting: {e}")
 
 # ARIMA Model
-
 def train_arima(df):
     if len(df) < 10:
         raise ValueError("Not enough data points to fit ARIMA model.")
@@ -145,22 +145,22 @@ def show_insights(df_filtered):
     try:
         forecast_model = train_arima(df_filtered)
         forecast_value = forecast_model.forecast(steps=1).iloc[0]
-        st.write(f"### \ud83d\udd2e ARIMA Prediction for {first_stock}")
+        st.write(f"### 🔮 ARIMA Prediction for {first_stock}")
         if forecast_value > df_filtered['Close'].iloc[-1] * 1.05:
-            st.success("\ud83d\udcc8 **BUY:** Expected upward trend.")
+            st.success("📈 **BUY:** Expected upward trend.")
         elif forecast_value < df_filtered['Close'].iloc[-1] * 0.95:
-            st.error("\ud83d\udcc9 **SELL:** Expected downward trend.")
+            st.error("📉 **SELL:** Expected downward trend.")
         else:
-            st.warning("\u2696 **HOLD:** Market stable.")
+            st.warning("⚖️ **HOLD:** Market stable.")
     except Exception as e:
         st.error(f"Error occurred during ARIMA prediction: {e}")
 
 # Buttons with Functionality
-if st.sidebar.button("\ud83d\udcca Compare Stocks"):
+if st.sidebar.button("📊 Compare Stocks"):
     show_comparison()
-if st.sidebar.button("\ud83d\udcc8 View Trends"):
+if st.sidebar.button("📈 View Trends"):
     show_trends(df_filtered)
-if st.sidebar.button("\ud83d\udd2e AI Insights"):
+if st.sidebar.button("🔮 AI Insights"):
     show_insights(df_filtered)
-if st.sidebar.button("\ud83d\udcdc Generate Report"):
+if st.sidebar.button("📋 Generate Report"):
     st.write("Report generation feature coming soon!")
