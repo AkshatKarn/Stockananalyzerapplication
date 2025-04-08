@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
 # Function to fetch stock data
-@st.cache_data
+@st.cache_data()
 def load_data(stock):
     try:
         data = yf.download(stock, period="1y")
@@ -30,9 +30,9 @@ st.write("Analyze stocks, visualize trends, and get AI-driven insights!")
 # Stock selection
 stocks = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "NFLX", "NVDA", "META", "IBM", "INTC",
           "AMD", "BABA", "ORCL", "PYPL", "DIS", "PEP", "KO", "CSCO", "UBER", "LYFT"]
+st.sidebar.header("📊 Stock Selection & Customization")
 selected_stocks = st.sidebar.multiselect("📌 Select Stocks", stocks, default=["AAPL"])
 
-st.sidebar.header("📊 Stock Selection & Customization")
 if st.sidebar.button("🔄 Refresh Data"):
     st.cache_data.clear()
     st.rerun()
@@ -156,17 +156,22 @@ st.dataframe(df_filtered.head())
 def show_trends(df_filtered):
     fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time")
     st.plotly_chart(fig)
+    plt.clf()
+
 
 # ARIMA
 def train_arima(df):
     if len(df) < 10:
         raise ValueError("Not enough data for ARIMA.")
-    model = ARIMA(df["Close"], order=(1, 1, 1))
+    model = ARIMA(df["Close"].dropna(), order=(1, 1, 1))
     return model.fit()
 
 def show_insights(df_filtered):
     df_filtered.set_index("Date", inplace=True)
     try:
+        if df_filtered["Close"].dropna().shape[0] < 10:
+            st.error("Not enough data to train ARIMA model.")
+            return     
         forecast_model = train_arima(df_filtered)
         forecast_value = forecast_model.forecast(steps=1).iloc[0]
         st.write(f"### 🔮 ARIMA Forecast: {forecast_value:.2f}")
