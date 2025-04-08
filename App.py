@@ -5,6 +5,10 @@ import numpy as np
 import plotly.express as px
 import yfinance as yf
 from statsmodels.tsa.arima.model import ARIMA
+import seaborn as sns
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go  # For candlestick
+
 
 # Function to fetch stock data
 @st.cache_data
@@ -59,6 +63,48 @@ else:
 # Display stock comparison table
 st.write("### 📋 Stock Comparison Data")
 st.dataframe(merged_df.head())
+def add_moving_averages(df):
+    df["MA20"] = df["Close"].rolling(window=20).mean()
+    df["MA50"] = df["Close"].rolling(window=50).mean()
+    return df
+#Graphs and Charts
+def show_candlestick_chart(df, stock_name):
+    st.write(f"### 📉 Candlestick Chart for {stock_name}")
+    fig = go.Figure(data=[go.Candlestick(
+        x=df["Date"],
+        open=df["Open"],
+        high=df["High"],
+        low=df["Low"],
+        close=df["Close"]
+    )])
+    fig.update_layout(xaxis_title="Date", yaxis_title="Price", xaxis_rangeslider_visible=False)
+    st.plotly_chart(fig)
+
+def show_volume_chart(df, stock_name):
+    st.write(f"### 📊 Volume Traded for {stock_name}")
+    fig = px.bar(df, x="Date", y="Volume", labels={'Volume': 'Volume Traded'})
+    st.plotly_chart(fig)
+
+def show_moving_averages(df, stock_name):
+    df_ma = add_moving_averages(df.copy())
+    fig = px.line(df_ma, x="Date", y=["Close", "MA20", "MA50"], title=f"📈 {stock_name} Price with Moving Averages")
+    st.plotly_chart(fig)
+
+def show_volatility_chart(df, stock_name):
+    df["Returns"] = df["Close"].pct_change()
+    df["Volatility"] = df["Returns"].rolling(window=20).std()
+    fig = px.line(df, x="Date", y="Volatility", title=f"📉 {stock_name} 20-day Rolling Volatility")
+    st.plotly_chart(fig)
+
+def show_correlation_heatmap(stock_data):
+    st.write("### 🔍 Correlation Heatmap of Selected Stocks")
+    df_corr = pd.DataFrame({stock: data["Close"] for stock, data in stock_data.items()})
+    df_corr.dropna(inplace=True)
+
+    corr = df_corr.corr()
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
+    st.pyplot(fig)
 
 # Line chart for multiple stocks
 fig_compare = px.line(merged_df, x="Date", y=selected_stocks, title="📈 Stock Price Comparison")
@@ -164,3 +210,30 @@ if st.sidebar.button("🔮 AI Insights"):
     show_insights(df_filtered)
 if st.sidebar.button("📋 Generate Report"):
     st.write("Report generation feature coming soon!")
+if st.sidebar.button("📈 Compare Stocks"):
+    show_comparison()
+
+if st.sidebar.button("📉 View Trends"):
+    show_trends(df_filtered)
+
+if st.sidebar.button("🔮 AI Insights"):
+    show_insights(df_filtered)
+
+if st.sidebar.button("📉 Candlestick Chart"):
+    show_candlestick_chart(df_filtered, first_stock)
+
+if st.sidebar.button("📊 Volume Chart"):
+    show_volume_chart(df_filtered, first_stock)
+
+if st.sidebar.button("📈 Moving Averages"):
+    show_moving_averages(df_filtered, first_stock)
+
+if st.sidebar.button("📉 Volatility Chart"):
+    show_volatility_chart(df_filtered, first_stock)
+
+if st.sidebar.button("🔍 Correlation Heatmap"):
+    show_correlation_heatmap(stock_data)
+
+if st.sidebar.button("📝 Generate Report"):
+    st.write("Report generation feature coming soon!")
+    
