@@ -61,14 +61,19 @@ if start_date > end_date:
 # Filter data by date range for all stocks
 for stock in stock_data:
     stock_data[stock] = stock_data[stock][(stock_data[stock]["Date"] >= start_date) & (stock_data[stock]["Date"] <= end_date)].copy()
-    if stock_data[stock].empty:
-        st.warning(f"No data for {stock} in selected date range.")
 
-# Build merged dataframe for price comparison
-merged_df = pd.DataFrame({"Date": stock_data[first_stock]["Date"]})
+# Warn about stocks with no data in selected range
+no_data_stocks = [stock for stock in selected_stocks if stock_data[stock].empty]
+if no_data_stocks:
+    st.warning(f"No data for these stocks in selected date range: {', '.join(no_data_stocks)}")
+
+# Build merged dataframe for price comparison (fixed to avoid misalignment)
+merged_df = stock_data[first_stock][["Date"]].copy()
 for stock in selected_stocks:
     if "Close" in stock_data[stock]:
-        merged_df[stock] = stock_data[stock]["Close"].values
+        temp_df = stock_data[stock][["Date", "Close"]].rename(columns={"Close": stock})
+        merged_df = pd.merge(merged_df, temp_df, on="Date", how="outer")
+merged_df = merged_df.sort_values("Date").reset_index(drop=True)
 
 # Stock price comparison line chart
 fig_compare = px.line(merged_df, x="Date", y=selected_stocks, title="📈 Stock Price Comparison")
