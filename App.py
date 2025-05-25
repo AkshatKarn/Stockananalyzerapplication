@@ -154,10 +154,21 @@ st.dataframe(df_filtered.head())
 
 # Trend visualization
 def show_trends(df_filtered):
+    if df_filtered.empty:
+        st.warning("No data available for the selected stock or date range.")
+        return
+
+    if 'Date' not in df_filtered.columns or 'Close' not in df_filtered.columns:
+        st.error("Required columns ('Date' and 'Close') are missing.")
+        return
+
+    # Ensure 'Date' is datetime
+    df_filtered['Date'] = pd.to_datetime(df_filtered['Date'], errors='coerce')
+    df_filtered = df_filtered.dropna(subset=['Date'])
+
     fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time")
     st.plotly_chart(fig)
     plt.clf()
-
 
 # ARIMA
 def train_arima(df):
