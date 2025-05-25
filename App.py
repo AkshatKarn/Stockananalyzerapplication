@@ -92,7 +92,4 @@ if st.sidebar.button("🔄 Refresh Data") or st.session_state.get("data_loaded")
             with st.expander(f"📄 Raw Data for {stock}"):
                 st.dataframe(data)
 
----
-
-
 
