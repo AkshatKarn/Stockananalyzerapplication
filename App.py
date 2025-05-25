@@ -34,26 +34,29 @@ def get_stock_data(ticker, start, end):
 
 # Moving Averages Function
 def show_moving_averages(df, stock_name):
-    if df.empty or "Close" not in df.columns or df["Close"].dropna().shape[0] < 50:
-        st.warning(f"⚠️ Not enough data to display moving averages for {stock_name}.")
+    if df.empty or "Close" not in df.columns:
+        st.warning(f"⚠️ No valid data to display moving averages for {stock_name}.")
         return
 
     df_ma = df.copy()
     df_ma["MA20"] = df_ma["Close"].rolling(window=20).mean()
     df_ma["MA50"] = df_ma["Close"].rolling(window=50).mean()
 
-    valid_cols = ["Close"]
+    plot_cols = ["Close"]
     if df_ma["MA20"].notna().sum() > 0:
-        valid_cols.append("MA20")
+        plot_cols.append("MA20")
     if df_ma["MA50"].notna().sum() > 0:
-        valid_cols.append("MA50")
+        plot_cols.append("MA50")
 
-    if len(valid_cols) <= 1:
-        st.warning(f"⚠️ Moving average data is insufficient for {stock_name}.")
+    if len(plot_cols) <= 1:
+        st.warning(f"⚠️ Not enough data to calculate moving averages for {stock_name}.")
         return
 
-    fig = px.line(df_ma, x="Date", y=valid_cols, title=f"📈 {stock_name} Moving Averages")
-    st.plotly_chart(fig, use_container_width=True)
+    try:
+        fig = px.line(df_ma, x="Date", y=plot_cols, title=f"📊 {stock_name} Moving Averages")
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Plotting error for {stock_name}: {e}")
 
 # Candlestick Chart Function
 def show_candlestick_chart(df, stock_name):
