@@ -178,15 +178,16 @@ def train_arima(df):
     return model.fit()
 
 def show_insights(df_filtered):
-    df_filtered.set_index("Date", inplace=True)
+    df_copy = df_filtered.copy()
+    df_copy.set_index("Date", inplace=True)
     try:
-        if df_filtered["Close"].dropna().shape[0] < 10:
+        if df_copy["Close"].dropna().shape[0] < 10:
             st.error("Not enough data to train ARIMA model.")
             return     
-        forecast_model = train_arima(df_filtered)
+        forecast_model = train_arima(df_copy)
         forecast_value = forecast_model.forecast(steps=1).iloc[0]
         st.write(f"### 🔮 ARIMA Forecast: {forecast_value:.2f}")
-        current_price = df_filtered["Close"].iloc[-1]
+        current_price = df_copy["Close"].iloc[-1]
         if forecast_value > current_price * 1.05:
             st.success("📈 BUY signal")
         elif forecast_value < current_price * 0.95:
