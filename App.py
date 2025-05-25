@@ -67,17 +67,23 @@ no_data_stocks = [stock for stock in selected_stocks if stock_data[stock].empty]
 if no_data_stocks:
     st.warning(f"No data for these stocks in selected date range: {', '.join(no_data_stocks)}")
 
-# Build merged dataframe for price comparison (fixed to avoid misalignment)
+# Build merged dataframe for price comparison
 merged_df = stock_data[first_stock][["Date"]].copy()
 for stock in selected_stocks:
-    if "Close" in stock_data[stock]:
+    if stock in stock_data and not stock_data[stock].empty:
         temp_df = stock_data[stock][["Date", "Close"]].rename(columns={"Close": stock})
         merged_df = pd.merge(merged_df, temp_df, on="Date", how="outer")
+
 merged_df = merged_df.sort_values("Date").reset_index(drop=True)
 
-# Stock price comparison line chart
-fig_compare = px.line(merged_df, x="Date", y=selected_stocks, title="📈 Stock Price Comparison")
-st.plotly_chart(fig_compare, use_container_width=True)
+# Plot stock price comparison chart safely
+valid_stocks = [stock for stock in selected_stocks if stock in merged_df.columns]
+
+if not valid_stocks:
+    st.warning("No valid stock data available for plotting.")
+else:
+    fig_compare = px.line(merged_df, x="Date", y=valid_stocks, title="📈 Stock Price Comparison")
+    st.plotly_chart(fig_compare, use_container_width=True)
 
 # Candlestick Chart function
 def show_candlestick_chart(df, stock_name):
@@ -106,9 +112,9 @@ def show_moving_averages(df, stock_name):
 # Summary Statistics
 stats_df = pd.DataFrame({
     "Stock": selected_stocks,
-    "Mean Price": [stock_data[stock]["Close"].mean() for stock in selected_stocks],
-    "Max Price": [stock_data[stock]["Close"].max() for stock in selected_stocks],
-    "Min Price": [stock_data[stock]["Close"].min() for stock in selected_stocks],
+    "Mean Price": [stock_data[stock]["Close"].mean() if not stock_data[stock].empty else np.nan for stock in selected_stocks],
+    "Max Price": [stock_data[stock]["Close"].max() if not stock_data[stock].empty else np.nan for stock in selected_stocks],
+    "Min Price": [stock_data[stock]["Close"].min() if not stock_data[stock].empty else np.nan for stock in selected_stocks],
 })
 st.write("### 📊 Stock Summary Statistics")
 st.dataframe(stats_df)
@@ -117,9 +123,9 @@ st.dataframe(stats_df)
 def show_performance():
     rows = []
     for stock in selected_stocks:
-        close_series = stock_data[stock]["Close"]
-        if close_series.empty:
+        if stock_data[stock].empty:
             continue
+        close_series = stock_data[stock]["Close"]
         start_price, end_price = close_series.iloc[0], close_series.iloc[-1]
         one_year_return = ((end_price - start_price) / start_price) * 100
         volatility = close_series.pct_change().std() * np.sqrt(252)
@@ -161,6 +167,9 @@ def show_ai_insights(df, stock_name):
         st.error(f"ARIMA failed: {e}")
 
 # Show charts for the first selected stock only (to keep UI clean)
-show_candlestick_chart(stock_data[first_stock], first_stock)
-show_moving_averages(stock_data[first_stock], first_stock)
-show_ai_insights(stock_data[first_stock], first_stock)
+if not stock_data[first_stock].empty:
+    show_candlestick_chart(stock_data[first_stock], first_stock)
+    show_moving_averages(stock_data[first_stock], first_stock)
+    show_ai_insights(stock_data[first_stock], first_stock)
+else:
+    st.warning(f"No data to show charts or predictions for {first_stock}.")
