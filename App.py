@@ -152,17 +152,19 @@ if df_filtered.empty or "Close" not in df_filtered.columns:
 st.write(f"### 📋 Historical Data for {first_stock}")
 st.dataframe(df_filtered.head())
 
-# Trend visualization
+# ✅ Patched Function: Trend visualization
 def show_trends(df_filtered):
     if df_filtered.empty:
         st.warning("No data available for the selected stock or date range.")
         return
 
+    # Ensure 'Date' is a column, not index
+    df_filtered = df_filtered.reset_index()
+
     if 'Date' not in df_filtered.columns or 'Close' not in df_filtered.columns:
         st.error("Required columns ('Date' and 'Close') are missing.")
         return
 
-    # Ensure 'Date' is datetime
     df_filtered['Date'] = pd.to_datetime(df_filtered['Date'], errors='coerce')
     df_filtered = df_filtered.dropna(subset=['Date'])
 
