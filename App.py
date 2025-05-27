@@ -25,14 +25,15 @@ if start_date >= end_date:
 def get_stock_data(ticker, start, end):
     try:
         df = yf.download(ticker, start=start, end=end, group_by='ticker')
-
-        # Handle MultiIndex columns
+        
+        # Handle MultiIndex columns (happens with certain ticker formats)
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = ['_'.join(col).strip() if col[1] else col[0] for col in df.columns.values]
 
+        # Reset index to ensure 'Date' is a column
         df.reset_index(inplace=True)
 
-        # Standardize column names
+        # Standardize column names for consistency
         df.rename(columns={
             f'Open_{ticker}': 'Open',
             f'High_{ticker}': 'High',
