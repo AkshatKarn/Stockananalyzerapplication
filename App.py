@@ -25,11 +25,17 @@ if start_date >= end_date:
 def get_stock_data(ticker, start, end):
     try:
         df = yf.download(ticker, start=start, end=end)
+
+        # Flatten MultiIndex columns if present
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [col[1] if isinstance(col, tuple) else col for col in df.columns]
+
         df.reset_index(inplace=True)
         return df
     except Exception as e:
         st.error(f"Error fetching data for {ticker}: {e}")
         return pd.DataFrame()
+
 
 # Moving Averages Function
 def show_moving_averages(df, stock_name):
