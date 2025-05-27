@@ -32,10 +32,12 @@ def get_stock_data(ticker, start, end):
 
         df.reset_index(inplace=True)
         return df
+    
     except Exception as e:
         st.error(f"Error fetching data for {ticker}: {e}")
-        return pd.DataFrame()
-
+       if df.empty or not {'Open', 'High', 'Low', 'Close'}.issubset(df.columns):
+    st.warning(f"⚠️ Incomplete data for {ticker}. Columns: {df.columns.tolist()}")
+    return pd.DataFrame()
 
 # Moving Averages Function
 def show_moving_averages(df, stock_name):
@@ -62,6 +64,14 @@ def show_moving_averages(df, stock_name):
         st.plotly_chart(fig, use_container_width=True)
     except Exception as e:
         st.error(f"Plotting error for {stock_name}: {e}")
+#column check 
+
+required_cols = ['Open', 'High', 'Low', 'Close']
+missing_cols = [col for col in required_cols if col not in df.columns]
+
+if missing_cols:
+    st.error(f"Missing columns in data for {stock_name}: {', '.join(missing_cols)}")
+    return
 
 # Candlestick Chart Function
 def show_candlestick_chart(df, stock_name):
