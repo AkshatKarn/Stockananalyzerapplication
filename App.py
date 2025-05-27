@@ -5,13 +5,12 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
 
-# Title
+# Page config and title
 st.set_page_config(page_title="AI-Powered Stock Analyzer", layout="wide")
 st.title("📊 AI-Powered Stock Analyzer")
 
 # Sidebar - Stock Selection and Date Range
 st.sidebar.header("🗂️ Stock Selection & Date Range")
-
 stock_list = ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "META", "NFLX", "NVDA"]
 selected_stocks = st.sidebar.multiselect("📈 Select Stocks", stock_list, default=["AAPL"])
 
@@ -26,21 +25,21 @@ if start_date >= end_date:
 def get_stock_data(ticker, start, end):
     try:
         df = yf.download(ticker, start=start, end=end, group_by='ticker')
-        # Handle MultiIndex columns (happens with certain ticker formats)
-if isinstance(df.columns, pd.MultiIndex):
-    df.columns = ['_'.join(col).strip() if col[1] else col[0] for col in df.columns.values]
 
-# Reset index to ensure 'Date' is a column
-df.reset_index(inplace=True)
+        # Handle MultiIndex columns
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = ['_'.join(col).strip() if col[1] else col[0] for col in df.columns.values]
 
-# Standardize column names for consistency
-df.rename(columns={
-    f'Open_{ticker}': 'Open',
-    f'High_{ticker}': 'High',
-    f'Low_{ticker}': 'Low',
-    f'Close_{ticker}': 'Close',
-    f'Volume_{ticker}': 'Volume'
-}, inplace=True)
+        df.reset_index(inplace=True)
+
+        # Standardize column names
+        df.rename(columns={
+            f'Open_{ticker}': 'Open',
+            f'High_{ticker}': 'High',
+            f'Low_{ticker}': 'Low',
+            f'Close_{ticker}': 'Close',
+            f'Volume_{ticker}': 'Volume'
+        }, inplace=True)
 
         return df
     except Exception as e:
@@ -89,9 +88,8 @@ def show_candlestick_chart(df, stock_name):
     fig.update_layout(title=f"🕯️ Candlestick Chart - {stock_name}", xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
 
-# Main Dashboard
+# Main Dashboard Logic
 if st.sidebar.button("🔄 Refresh Data") or st.session_state.get("data_loaded"):
-
     if not selected_stocks:
         st.warning("⚠️ Please select at least one stock.")
     else:
@@ -109,5 +107,3 @@ if st.sidebar.button("🔄 Refresh Data") or st.session_state.get("data_loaded")
 
             with st.expander(f"📄 Raw Data for {stock}"):
                 st.dataframe(data)
-
-
