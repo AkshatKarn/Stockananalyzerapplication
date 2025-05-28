@@ -59,22 +59,33 @@ st.write("Available Stock Data:", list(stock_data.keys()))
 
 # Create merged dataframe for comparison
 first_stock = next(iter(stock_data))
-
+# === SINGLE STOCK VIEW ===
 if len(selected_stocks) == 1:
-    # Show data for a single selected stock
     stock = selected_stocks[0]
-    df = stock_data[stock]
-    df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)].copy()
+    df = stock_data.get(stock)
 
-    if df_filtered.empty:
-        st.warning(f"No data available for {stock} in the selected date range.")
+    if df is None or df.empty:
+        st.warning(f"No data available for {stock}.")
     else:
-        st.write(f"### 📜 Historical Data for {stock}")
-        st.dataframe(df_filtered.head())
-        st.write("Date Range in Data:", df_filtered['Date'].min(), "to", df_filtered['Date'].max())
+        df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)].copy()
 
-        fig = px.line(df_filtered, x="Date", y="Close", title=f"📈 Stock Price of {first_stock}")
-        st.plotly_chart(fig)
+        if df_filtered.empty:
+            st.warning(f"No data available for {stock} in the selected date range.")
+        elif "Date" not in df_filtered.columns or "Close" not in df_filtered.columns:
+            st.warning("Required columns ('Date', 'Close') are missing.")
+        else:
+            st.write(f"### 📜 Historical Data for {stock}")
+            st.dataframe(df_filtered.head())
+
+            st.write("Date Range in Data:", df_filtered['Date'].min(), "to", df_filtered['Date'].max())
+
+            # Plotting safely
+            try:
+                fig = px.line(df_filtered, x="Date", y="Close", title=f"📈 Stock Price of {stock}")
+                st.plotly_chart(fig)
+            except Exception as e:
+                st.error(f"Plotting error: {e}")
+
 else:
     # Multiple stocks — show comparison
     merged_df = pd.DataFrame({"Date": stock_data[first_stock]["Date"]})
