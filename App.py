@@ -27,7 +27,7 @@ if st.sidebar.button("💡 AI Stock Picks"):
 
 @st.cache_data
 def load_data(stock):
-    date_rng = pd.date_range(start="2025-01-01", end="2026-01-01", freq="D")  # Fixed to start from 2025
+    date_rng = pd.date_range(start="2025-01-01", end="2026-01-01", freq="D")  # Available data only for 2025
     data = np.random.randn(len(date_rng)) * 10 + 100
     df = pd.DataFrame({"Date": date_rng, "Open": data-2, "High": data+2, "Low": data-4, "Close": data})
     df["Date"] = df["Date"].dt.tz_localize(None)
@@ -39,11 +39,15 @@ st.sidebar.header("📅 Select Date Range")
 start_date = st.sidebar.date_input("Start Date", df["Date"].min())
 end_date = st.sidebar.date_input("End Date", df["Date"].max())
 
-# Ensure proper filtering by converting date inputs to datetime
+# Ensure proper filtering
 start_date = pd.to_datetime(start_date)
 end_date = pd.to_datetime(end_date)
-
 df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)]
+
+# Check for empty filtered DataFrame
+if df_filtered.empty:
+    st.error("🚫 No data available for the selected date range. Please choose a different range.")
+    st.stop()
 
 st.write(f"### 📜 Historical Data for {selected_stock}")
 st.dataframe(df_filtered.head())
