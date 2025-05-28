@@ -5,31 +5,27 @@ import plotly.express as px
 import yfinance as yf
 from statsmodels.tsa.arima.model import ARIMA
 
-# Streamlit UI setup
-st.set_page_config(page_title="📊 AI-Powered Stock Analyzer", layout="wide")
-st.title("📊 AI-Powered Stock Analyzer")
+# ---------- CONFIGURATION ----------
+st.set_page_config(page_title="\ud83d\udcca AI-Powered Stock Analyzer", layout="wide")
+st.title("\ud83d\udcca AI-Powered Stock Analyzer")
 st.write("Analyze stocks, visualize trends, and get AI-driven insights!")
 
-# Stock list and selection
-stocks = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "NFLX", "NVDA", "META", "IBM", "INTC",
-          "AMD", "BABA", "ORCL", "PYPL", "DIS", "PEP", "KO", "CSCO", "UBER", "LYFT"]
-selected_stocks = st.sidebar.multiselect("📌 Select Stocks", stocks, default=["AAPL"])
+# ---------- UTILITY FUNCTIONS ----------
+def plot_line_chart(df, x_col="Date", y_col="Close", title="\ud83d\udcc8 Stock Chart"):
+    if df is None or df.empty:
+        st.warning("No data to plot.")
+        return
 
-# Sidebar - Refresh
-st.sidebar.header("📊 Stock Selection & Customization")
-if st.sidebar.button("🔄 Refresh Data"):
-    st.session_state.clear()
-    st.rerun()
+    if x_col not in df.columns or (isinstance(y_col, str) and y_col not in df.columns):
+        st.warning(f"Missing '{x_col}' or '{y_col}' in the data.")
+        return
 
-# Sidebar - Date Range
-st.sidebar.header("📅 Select Date Range")
-start_date = st.sidebar.date_input("Start Date", pd.to_datetime("2024-05-01"))
-end_date = st.sidebar.date_input("End Date", pd.to_datetime("2025-05-28"))
+    try:
+        fig = px.line(df, x=x_col, y=y_col, title=title)
+        st.plotly_chart(fig)
+    except Exception as e:
+        st.error(f"Plotting error: {e}")
 
-start_date, end_date = pd.to_datetime(start_date), pd.to_datetime(end_date)
-
-# Data loader function with caching
-@st.cache_data
 def load_data(stock, start_date, end_date):
     data = yf.download(stock, start=start_date, end=end_date)
     if data.empty:
@@ -39,64 +35,105 @@ def load_data(stock, start_date, end_date):
     data.dropna(subset=["Date", "Close"], inplace=True)
     return data
 
-# Check stock selection
+@st.cache_data
+def get_data(stock, start, end):
+    return load_data(stock, start, end)
+
+def show_comparison(stock_data, selected_stocks):
+    st.write("### \ud83d\udcca Stock Performance Comparison")
+    performance_df = pd.DataFrame({
+        "Stock": selected_stocks,
+        "1-Year Return (%)": [(stock_data[stock]["Close"].iloc[-1] - stock_data[stock]["Close"].iloc[0]) /
+                               stock_data[stock]["Close"].iloc[0] * 100 for stock in selected_stocks],
+        "Volatility": [stock_data[stock]['Close'].pct_change().std() * np.sqrt(252) for stock in selected_stocks]
+    })
+    st.dataframe(performance_df)
+
+def show_trends(df_filtered):
+    plot_line_chart(df_filtered, title="\ud83d\udcc8 Stock Price Over Time")
+
+def train_arima(df):
+    model = ARIMA(df["Close"], order=(1, 1, 1))
+    return model.fit()
+
+def show_insights(df_filtered, stock):
+    df_copy = df_filtered.dropna(subset=["Close"]).copy()
+
+    if len(df_copy) < 20:
+        st.warning("Not enough data points for reliable ARIMA forecast.")
+        return
+
+    df_copy.set_index("Date", inplace=True)
+
+    try:
+        model = train_arima(df_copy)
+        forecast = model.forecast(steps=1)[0]
+        current = df_copy["Close"].iloc[-1]
+        st.write(f"### \ud83d\udd2e Forecast for {stock}: {forecast:.2f}")
+
+        if forecast > current * 1.05:
+            st.success("\ud83d\udcc8 BUY: Expected uptrend")
+        elif forecast < current * 0.95:
+            st.error("\ud83d\udcc9 SELL: Expected downtrend")
+        else:
+            st.warning("\u2696 HOLD: Market stable")
+    except Exception as e:
+        st.error(f"ARIMA error: {e}")
+
+# ---------- SIDEBAR INPUT ----------
+stocks = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "NFLX", "NVDA", "META", "IBM", "INTC",
+          "AMD", "BABA", "ORCL", "PYPL", "DIS", "PEP", "KO", "CSCO", "UBER", "LYFT"]
+selected_stocks = st.sidebar.multiselect("\ud83d\udccc Select Stocks", stocks, default=["AAPL"])
+
+st.sidebar.header("\ud83d\udcca Stock Selection & Customization")
+if st.sidebar.button("\ud83d\udd04 Refresh Data"):
+    st.session_state.clear()
+    st.rerun()
+
+st.sidebar.header("\ud83d\udcc5 Select Date Range")
+start_date = st.sidebar.date_input("Start Date", pd.to_datetime("2024-05-01"))
+end_date = st.sidebar.date_input("End Date", pd.to_datetime("2025-05-28"))
+start_date, end_date = pd.to_datetime(start_date), pd.to_datetime(end_date)
+
+# ---------- DATA LOADING ----------
 if not selected_stocks:
     st.error("No stocks selected. Please choose at least one.")
     st.stop()
 
-# Load data for each selected stock
-stock_data = {stock: load_data(stock, start_date, end_date) for stock in selected_stocks}
+stock_data = {stock: get_data(stock, start_date, end_date) for stock in selected_stocks}
 stock_data = {k: v for k, v in stock_data.items() if v is not None}
 
-# Stop if no valid data
 if not stock_data:
     st.error("No stock data retrieved. Check stock symbols or internet.")
     st.stop()
 
-# Show available stocks
+# ---------- DISPLAY DATA ----------
 st.write("Selected Stocks:", selected_stocks)
 st.write("Available Stock Data:", list(stock_data.keys()))
 
-# Create merged dataframe for comparison
 first_stock = next(iter(stock_data))
-# === SINGLE STOCK VIEW ===
+
 if len(selected_stocks) == 1:
     stock = selected_stocks[0]
     df = stock_data.get(stock)
+    df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)].copy()
 
-    if df is None or df.empty:
-        st.warning(f"No data available for {stock}.")
+    if df_filtered.empty:
+        st.warning(f"No data available for {stock} in the selected date range.")
     else:
-        df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)].copy()
+        st.write(f"### \ud83d\udcdc Historical Data for {stock}")
+        st.dataframe(df_filtered.head())
 
-        if df_filtered.empty:
-            st.warning(f"No data available for {stock} in the selected date range.")
-        elif "Date" not in df_filtered.columns or "Close" not in df_filtered.columns:
-            st.warning("Required columns ('Date', 'Close') are missing.")
-        else:
-            st.write(f"### 📜 Historical Data for {stock}")
-            st.dataframe(df_filtered.head())
-
-            st.write("Date Range in Data:", df_filtered['Date'].min(), "to", df_filtered['Date'].max())
-
-            # Plotting safely
-            try:
-                fig = px.line(df_filtered, x="Date", y="Close", title=f"📈 Stock Price of {stock}")
-                st.plotly_chart(fig)
-            except Exception as e:
-                st.error(f"Plotting error: {e}")
-
+        st.write("Date Range in Data:", df_filtered['Date'].min(), "to", df_filtered['Date'].max())
+        plot_line_chart(df_filtered, title=f"\ud83d\udcc8 Stock Price of {stock}")
 else:
-    # Multiple stocks — show comparison
     merged_df = pd.DataFrame({"Date": stock_data[first_stock]["Date"]})
     for stock in selected_stocks:
         merged_df[stock] = stock_data[stock]["Close"]
 
-    st.write("### 📜 Stock Comparison Data")
+    st.write("### \ud83d\udcdc Stock Comparison Data")
     st.dataframe(merged_df.head())
-
-    fig_compare = px.line(merged_df, x="Date", y=selected_stocks, title="📈 Stock Price Comparison")
-    st.plotly_chart(fig_compare)
+    plot_line_chart(merged_df, x_col="Date", y_col=selected_stocks, title="\ud83d\udcc8 Stock Price Comparison")
 
     stats_df = pd.DataFrame({
         "Stock": selected_stocks,
@@ -104,81 +141,21 @@ else:
         "Max Price": [stock_data[stock]["Close"].max() for stock in selected_stocks],
         "Min Price": [stock_data[stock]["Close"].min() for stock in selected_stocks],
     })
-    st.write("### 📊 Stock Comparison Summary")
+    st.write("### \ud83d\udcca Stock Comparison Summary")
     st.dataframe(stats_df)
 
-# Stock performance comparison
-def show_comparison():
-    st.write("### 📊 Stock Performance Comparison")
-    performance_df = pd.DataFrame({
-        "Stock": selected_stocks,
-        "1-Year Return (%)": [(stock_data[stock]["Close"].iloc[-1] - stock_data[stock]["Close"].iloc[0]) /
-                              stock_data[stock]["Close"].iloc[0] * 100 for stock in selected_stocks],
-        "Volatility": [stock_data[stock]['Close'].pct_change().std() * np.sqrt(252) for stock in selected_stocks]
-    })
-    st.dataframe(performance_df)
-
-# Plot trends
-def show_trends(df_filtered):
-    if df_filtered.empty or "Date" not in df_filtered.columns or "Close" not in df_filtered.columns:
-        st.warning("Insufficient data to plot trends.")
-        return
-    fig = px.line(df_filtered, x="Date", y="Close", title="📈 Stock Price Over Time")
-    st.plotly_chart(fig)
-
-# ARIMA model
-def train_arima(df):
-    model = ARIMA(df["Close"], order=(1, 1, 1))
-    return model.fit()
-
-# Show insights
-def show_insights(df_filtered):
-    df_filtered = df_filtered.dropna(subset=["Close"])
-    
-    # Create a copy to avoid modifying the original df_filtered
-    df_copy = df_filtered.copy()
-    
-    # Check for enough data
-    if len(df_copy) < 20:
-        st.warning("Not enough data points for reliable ARIMA forecast.")
-        return
-    
-    df_copy.set_index("Date", inplace=True)
-
-    try:
-        model = train_arima(df_copy)
-        forecast = model.forecast(steps=1)[0]
-        current = df_copy["Close"].iloc[-1]
-        st.write(f"### 🔮 Forecast for {first_stock}: {forecast:.2f}")
-
-        if forecast > current * 1.05:
-            st.success("📈 BUY: Expected uptrend")
-        elif forecast < current * 0.95:
-            st.error("📉 SELL: Expected downtrend")
-        else:
-            st.warning("⚖ HOLD: Market stable")
-    except Exception as e:
-        st.error(f"ARIMA error: {e}")
-
-# Recalculate df_filtered for final buttons (ensure consistency)
+# ---------- SIDEBAR ACTIONS ----------
 df = stock_data[first_stock]
 df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)].copy()
 
-# Sidebar buttons
-if st.sidebar.button("📊 Compare Stocks"):
-    show_comparison()
+if st.sidebar.button("\ud83d\udcca Compare Stocks"):
+    show_comparison(stock_data, selected_stocks)
 
-if st.sidebar.button("📈 View Trends"):
-    if df_filtered.empty or "Close" not in df_filtered.columns:
-        st.error(f"No data available to show trends for {first_stock} in the selected date range.")
-    else:
-        show_trends(df_filtered)
+if st.sidebar.button("\ud83d\udcc8 View Trends"):
+    show_trends(df_filtered)
 
-if st.sidebar.button("🔮 AI Insights"):
-    if df_filtered.empty or "Close" not in df_filtered.columns:
-        st.error(f"No data available to generate insights for {first_stock}.")
-    else:
-        show_insights(df_filtered)
+if st.sidebar.button("\ud83d\udd2e AI Insights"):
+    show_insights(df_filtered, first_stock)
 
-if st.sidebar.button("📜 Generate Report"):
+if st.sidebar.button("\ud83d\udcdc Generate Report"):
     st.info("Report generation feature coming soon!")
