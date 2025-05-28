@@ -134,12 +134,21 @@ def train_arima(df):
 # Show insights
 def show_insights(df_filtered):
     df_filtered = df_filtered.dropna(subset=["Close"])
-    df_filtered.set_index("Date", inplace=True)
+    
+    # Create a copy to avoid modifying the original df_filtered
+    df_copy = df_filtered.copy()
+    
+    # Check for enough data
+    if len(df_copy) < 20:
+        st.warning("Not enough data points for reliable ARIMA forecast.")
+        return
+    
+    df_copy.set_index("Date", inplace=True)
 
     try:
-        model = train_arima(df_filtered)
+        model = train_arima(df_copy)
         forecast = model.forecast(steps=1)[0]
-        current = df_filtered["Close"].iloc[-1]
+        current = df_copy["Close"].iloc[-1]
         st.write(f"### 🔮 Forecast for {first_stock}: {forecast:.2f}")
 
         if forecast > current * 1.05:
