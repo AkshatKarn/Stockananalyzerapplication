@@ -2,16 +2,16 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 import yfinance as yf
-from statsmodels.tsa.arima.model import ARIMA
 
 # ---------- CONFIGURATION ----------
-st.set_page_config(page_title="📊 AI-Powered Stock Analyzer", layout="wide")
-st.title("📊 AI-Powered Stock Analyzer")
-st.write("Analyze stocks, visualize trends, and get AI-driven insights!")
+st.set_page_config(page_title="\ud83d\udcca AI-Powered Stock Analyzer", layout="wide")
+st.title("\ud83d\udcca AI-Powered Stock Analyzer")
+st.write("Analyze stocks, visualize trends, and get smart insights!")
 
 # ---------- UTILITY FUNCTIONS ----------
-def plot_line_chart(df, x_col="Date", y_col="Close", title="📈 Stock Chart"):
+def plot_line_chart(df, x_col="Date", y_col="Close", title="\ud83d\udcc8 Stock Chart"):
     if df is None or df.empty:
         st.warning("No data to plot.")
         return
@@ -32,6 +32,18 @@ def plot_line_chart(df, x_col="Date", y_col="Close", title="📈 Stock Chart"):
     except Exception as e:
         st.error(f"Plotting error: {e}")
 
+def plot_candlestick_chart(df, title="\ud83d\udcc9 Candlestick Chart"):
+    if {'Date', 'Open', 'High', 'Low', 'Close'}.issubset(df.columns):
+        fig = go.Figure(data=[
+            go.Candlestick(x=df['Date'],
+                           open=df['Open'], high=df['High'],
+                           low=df['Low'], close=df['Close'])
+        ])
+        fig.update_layout(title=title, xaxis_title='Date', yaxis_title='Price')
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("Missing required columns for candlestick chart.")
+
 def load_data(stock, start_date, end_date):
     data = yf.download(stock, start=start_date, end=end_date)
     if data.empty:
@@ -46,7 +58,7 @@ def get_data(stock, start, end):
     return load_data(stock, start, end)
 
 def show_comparison(stock_data, selected_stocks):
-    st.write("### 📊 Stock Performance Comparison")
+    st.write("### \ud83d\udcca Stock Performance Comparison")
     performance_df = pd.DataFrame({
         "Stock": selected_stocks,
         "1-Year Return (%)": [
@@ -61,48 +73,40 @@ def show_comparison(stock_data, selected_stocks):
     st.dataframe(performance_df)
 
 def show_trends(df_filtered):
-    plot_line_chart(df_filtered, title="📈 Stock Price Over Time")
-
-def train_arima(df):
-    model = ARIMA(df["Close"], order=(1, 1, 1))
-    return model.fit()
+    st.write("### \ud83d\udcc8 Line Chart Trend")
+    plot_line_chart(df_filtered, title="\ud83d\udcc8 Stock Price Over Time")
+    st.write("### \ud83d\udcc9 Candlestick Trend")
+    plot_candlestick_chart(df_filtered)
 
 def show_insights(df_filtered, stock):
-    df_copy = df_filtered.dropna(subset=["Close"]).copy()
+    st.write(f"### \ud83e\udd14 Insights for {stock}")
+    mean_price = df_filtered["Close"].mean()
+    max_price = df_filtered["Close"].max()
+    min_price = df_filtered["Close"].min()
+    st.markdown(f"- Average Price: **{mean_price:.2f}**")
+    st.markdown(f"- Max Price: **{max_price:.2f}**")
+    st.markdown(f"- Min Price: **{min_price:.2f}**")
 
-    if len(df_copy) < 20:
-        st.warning("Not enough data points for reliable ARIMA forecast.")
-        return
-
-    df_copy.set_index("Date", inplace=True)
-
-    try:
-        model = train_arima(df_copy)
-        forecast = model.forecast(steps=1)[0]
-        current = df_copy["Close"].iloc[-1]
-        st.write(f"### 🔮 Forecast for {stock}: {forecast:.2f}")
-
-        if forecast > current * 1.05:
-            st.success("📈 BUY: Expected uptrend")
-        elif forecast < current * 0.95:
-            st.error("📉 SELL: Expected downtrend")
-        else:
-            st.warning("⚖️ HOLD: Market stable")
-    except Exception as e:
-        st.error(f"ARIMA error: {e}")
+def generate_report(df_filtered, stock):
+    st.write("### \ud83d\udcc4 Generated Report")
+    st.markdown(f"#### Summary for **{stock}**")
+    st.dataframe(df_filtered.describe())
+    show_insights(df_filtered, stock)
+    plot_line_chart(df_filtered, title=f"\ud83d\udcc8 {stock} Line Chart")
+    plot_candlestick_chart(df_filtered, title=f"\ud83d\udcc9 {stock} Candlestick Chart")
 
 # ---------- SIDEBAR INPUT ----------
 stocks = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "NFLX", "NVDA", "META", "IBM", "INTC",
           "AMD", "BABA", "ORCL", "PYPL", "DIS", "PEP", "KO", "CSCO", "UBER", "LYFT"]
 
-selected_stocks = st.sidebar.multiselect("📌 Select Stocks", stocks, default=["AAPL"])
+selected_stocks = st.sidebar.multiselect("\ud83d\udccc Select Stocks", stocks, default=["AAPL"])
 
-st.sidebar.header("📊 Stock Selection & Customization")
-if st.sidebar.button("🔄 Refresh Data"):
+st.sidebar.header("\ud83d\udcca Stock Selection & Customization")
+if st.sidebar.button("\ud83d\udd04 Refresh Data"):
     st.cache_data.clear()
     st.experimental_rerun()
 
-st.sidebar.header("📅 Select Date Range")
+st.sidebar.header("\ud83d\udcc5 Select Date Range")
 min_date = pd.to_datetime("2010-01-01")
 max_date = pd.to_datetime("today")
 start_date = st.sidebar.date_input("Start Date", pd.to_datetime("2024-05-01"), min_value=min_date, max_value=max_date)
@@ -132,29 +136,26 @@ st.write("Available Stock Data:", list(stock_data.keys()))
 
 first_stock = next(iter(stock_data))
 
-if len(selected_stocks) == 1:
-    stock = selected_stocks[0]
-    df = stock_data[stock]
-    df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)].copy()
+df = stock_data[first_stock]
+df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)].copy()
 
+if len(selected_stocks) == 1:
     if df_filtered.empty:
-        st.warning(f"No data available for {stock} in the selected date range.")
+        st.warning(f"No data available for {first_stock} in the selected date range.")
     else:
-        st.write(f"### 📜 Historical Data for {stock}")
+        st.write(f"### \ud83d\udcdc Historical Data for {first_stock}")
         st.dataframe(df_filtered.head())
 
         st.write("Date Range in Data:", df_filtered['Date'].min().date(), "to", df_filtered['Date'].max().date())
-        plot_line_chart(df_filtered, title=f"📈 Stock Price of {stock}")
-
+        plot_line_chart(df_filtered, title=f"\ud83d\udcc8 Stock Price of {first_stock}")
 else:
-    # Merge dates and close prices from all stocks for comparison
     merged_df = pd.DataFrame({"Date": stock_data[first_stock]["Date"]})
     for stock in selected_stocks:
         merged_df[stock] = stock_data[stock]["Close"].values
 
-    st.write("### 📜 Stock Comparison Data")
+    st.write("### \ud83d\udcdc Stock Comparison Data")
     st.dataframe(merged_df.head())
-    plot_line_chart(merged_df, x_col="Date", y_col=selected_stocks, title="📈 Stock Price Comparison")
+    plot_line_chart(merged_df, x_col="Date", y_col=selected_stocks, title="\ud83d\udcc8 Stock Price Comparison")
 
     stats_df = pd.DataFrame({
         "Stock": selected_stocks,
@@ -162,21 +163,18 @@ else:
         "Max Price": [stock_data[stock]["Close"].max() for stock in selected_stocks],
         "Min Price": [stock_data[stock]["Close"].min() for stock in selected_stocks],
     })
-    st.write("### 📊 Stock Comparison Summary")
+    st.write("### \ud83d\udcca Stock Comparison Summary")
     st.dataframe(stats_df)
 
 # ---------- SIDEBAR ACTIONS ----------
-df = stock_data[first_stock]
-df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)].copy()
-
-if st.sidebar.button("📊 Compare Stocks"):
+if st.sidebar.button("\ud83d\udcca Compare Stocks"):
     show_comparison(stock_data, selected_stocks)
 
-if st.sidebar.button("📈 View Trends"):
+if st.sidebar.button("\ud83d\udcc8 View Trends"):
     show_trends(df_filtered)
 
-if st.sidebar.button("🔮 AI Insights"):
+if st.sidebar.button("\ud83e\udd2e AI Insights"):
     show_insights(df_filtered, first_stock)
 
-if st.sidebar.button("📜 Generate Report"):
-    st.info("Report generation feature coming soon!")
+if st.sidebar.button("\ud83d\udcc4 Generate Report"):
+    generate_report(df_filtered, first_stock)
