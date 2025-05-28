@@ -71,7 +71,7 @@ if len(selected_stocks) == 1:
         st.dataframe(df_filtered.head())
         st.write("Date Range in Data:", df_filtered['Date'].min(), "to", df_filtered['Date'].max())
 
-        fig = px.line(df_filtered, x="Date", y="Close", title=f"📈 Stock Price of {stock}")
+        fig = px.line(df_filtered, x="Date", y="Close", title=f"📈 Stock Price of {first_stock}")
         st.plotly_chart(fig)
 else:
     # Multiple stocks — show comparison
