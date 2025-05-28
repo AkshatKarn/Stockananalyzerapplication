@@ -57,26 +57,43 @@ st.write("Available Stock Data:", list(stock_data.keys()))
 
 # Create merged dataframe for comparison
 first_stock = next(iter(stock_data))
-merged_df = pd.DataFrame({"Date": stock_data[first_stock]["Date"]})
-for stock in selected_stocks:
-    merged_df[stock] = stock_data[stock]["Close"]
 
-# Show data and chart
-st.write("### 📜 Stock Comparison Data")
-st.dataframe(merged_df.head())
+if len(selected_stocks) == 1:
+    # Show data for a single selected stock
+    stock = selected_stocks[0]
+    df = stock_data[stock]
+    df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)].copy()
 
-fig_compare = px.line(merged_df, x="Date", y=selected_stocks, title="📈 Stock Price Comparison")
-st.plotly_chart(fig_compare)
+    if df_filtered.empty:
+        st.warning(f"No data available for {stock} in the selected date range.")
+    else:
+        st.write(f"### 📜 Historical Data for {stock}")
+        st.dataframe(df_filtered.head())
+        st.write("Date Range in Data:", df_filtered['Date'].min(), "to", df_filtered['Date'].max())
 
-# Show comparison summary
-stats_df = pd.DataFrame({
-    "Stock": selected_stocks,
-    "Mean Price": [stock_data[stock]["Close"].mean() for stock in selected_stocks],
-    "Max Price": [stock_data[stock]["Close"].max() for stock in selected_stocks],
-    "Min Price": [stock_data[stock]["Close"].min() for stock in selected_stocks],
-})
-st.write("### 📊 Stock Comparison Summary")
-st.dataframe(stats_df)
+        fig = px.line(df_filtered, x="Date", y="Close", title=f"📈 Stock Price of {stock}")
+        st.plotly_chart(fig)
+else:
+    # Multiple stocks — show comparison
+    merged_df = pd.DataFrame({"Date": stock_data[first_stock]["Date"]})
+    for stock in selected_stocks:
+        merged_df[stock] = stock_data[stock]["Close"]
+
+    st.write("### 📜 Stock Comparison Data")
+    st.dataframe(merged_df.head())
+
+    fig_compare = px.line(merged_df, x="Date", y=selected_stocks, title="📈 Stock Price Comparison")
+    st.plotly_chart(fig_compare)
+
+    stats_df = pd.DataFrame({
+        "Stock": selected_stocks,
+        "Mean Price": [stock_data[stock]["Close"].mean() for stock in selected_stocks],
+        "Max Price": [stock_data[stock]["Close"].max() for stock in selected_stocks],
+        "Min Price": [stock_data[stock]["Close"].min() for stock in selected_stocks],
+    })
+    st.write("### 📊 Stock Comparison Summary")
+    st.dataframe(stats_df)
+
 
 # Stock performance comparison
 def show_comparison():
