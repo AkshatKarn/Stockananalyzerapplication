@@ -35,6 +35,8 @@ def load_data(stock, start_date, end_date):
     if data.empty:
         return None
     data.reset_index(inplace=True)
+    data["Date"] = pd.to_datetime(data["Date"], errors='coerce')
+    data.dropna(subset=["Date", "Close"], inplace=True)
     return data
 
 # Check stock selection
@@ -94,7 +96,6 @@ else:
     st.write("### 📊 Stock Comparison Summary")
     st.dataframe(stats_df)
 
-
 # Stock performance comparison
 def show_comparison():
     st.write("### 📊 Stock Performance Comparison")
@@ -106,31 +107,20 @@ def show_comparison():
     })
     st.dataframe(performance_df)
 
-# Filtered data for trends/ARIMA
-df = stock_data[first_stock]
-df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)].copy()
-
-if df_filtered.empty or "Close" not in df_filtered.columns:
-    st.error("No data in selected date range.")
-    st.stop()
-
-st.write(f"### 📜 Historical Data for {first_stock}")
-st.dataframe(df_filtered.head())
-st.write("Date Range in Data:", df_filtered["Date"].min(), "to", df_filtered["Date"].max())
-
 # Plot trends
 def show_trends(df_filtered):
-    if df_filtered.empty:
-        st.warning("No data to show.")
+    if df_filtered.empty or "Date" not in df_filtered.columns or "Close" not in df_filtered.columns:
+        st.warning("Insufficient data to plot trends.")
         return
-    fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time")
+    fig = px.line(df_filtered, x="Date", y="Close", title="📈 Stock Price Over Time")
     st.plotly_chart(fig)
 
-# ARIMA prediction
+# ARIMA model
 def train_arima(df):
     model = ARIMA(df["Close"], order=(1, 1, 1))
     return model.fit()
 
+# Show insights
 def show_insights(df_filtered):
     df_filtered = df_filtered.dropna(subset=["Close"])
     df_filtered.set_index("Date", inplace=True)
@@ -150,13 +140,25 @@ def show_insights(df_filtered):
     except Exception as e:
         st.error(f"ARIMA error: {e}")
 
+# Recalculate df_filtered for final buttons (ensure consistency)
+df = stock_data[first_stock]
+df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)].copy()
+
 # Sidebar buttons
 if st.sidebar.button("📊 Compare Stocks"):
     show_comparison()
+
 if st.sidebar.button("📈 View Trends"):
-    show_trends(df_filtered)
+    if df_filtered.empty or "Close" not in df_filtered.columns:
+        st.error(f"No data available to show trends for {first_stock} in the selected date range.")
+    else:
+        show_trends(df_filtered)
+
 if st.sidebar.button("🔮 AI Insights"):
-    show_insights(df_filtered)
+    if df_filtered.empty or "Close" not in df_filtered.columns:
+        st.error(f"No data available to generate insights for {first_stock}.")
+    else:
+        show_insights(df_filtered)
+
 if st.sidebar.button("📜 Generate Report"):
     st.info("Report generation feature coming soon!")
-
