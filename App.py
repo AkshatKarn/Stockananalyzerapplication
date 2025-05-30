@@ -1,61 +1,109 @@
 import streamlit as st
 import pandas as pd
-import yfinance as yf
-import datetime
-import matplotlib.pyplot as plt
+import numpy as np
+import plotly.graph_objects as go
+import plotly.express as px
+from statsmodels.tsa.arima.model import ARIMA
 
-# Streamlit page config
-st.set_page_config(page_title="Simple Stock Analyzer", layout="wide")
-st.title("📈 Simple Stock Analyzer")
-st.markdown("Enter a stock symbol and date range to view price trends and basic stats.")
+st.set_page_config(page_title="AI-Powered Stock Analyzer", layout="wide")
+st.title("\ud83d\udcca AI-Powered Stock Analyzer")
+st.write("Analyze stocks, visualize trends, and get AI-driven insights!")
 
-# Sidebar inputs
-st.sidebar.header("Stock Selection")
-symbol = st.sidebar.text_input("Enter Stock Symbol (e.g., AAPL, MSFT)", value="AAPL")
-start_date = st.sidebar.date_input("Start Date", datetime.date(2022, 1, 1))
-end_date = st.sidebar.date_input("End Date", datetime.date.today())
+stocks = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "NFLX", "NVDA", "META", "IBM", "INTC", "AMD", "BABA",
+          "ORCL", "PYPL", "DIS", "PEP", "KO", "CSCO", "UBER", "LYFT"]
+selected_stock = st.sidebar.selectbox("\ud83d\udccc Select a Stock", stocks)
 
-# Validate date input
-if start_date >= end_date:
-    st.error("❗ Start date must be before end date.")
-    st.stop()
+st.sidebar.header("\ud83d\udcca Stock Selection & Customization")
+if st.sidebar.button("\ud83d\udd04 Refresh Data"):
+    st.session_state.clear()
+    st.experimental_rerun()
 
-# Fetch stock data
 @st.cache_data
-def load_data(symbol, start, end):
-    df = yf.download(symbol, start=start, end=end)
-    df.reset_index(inplace=True)
+def load_data(stock):
+    date_rng = pd.date_range(start="2020-01-01", end="2026-12-31", freq="D")
+    data = np.random.randn(len(date_rng)) * 10 + 100
+    df = pd.DataFrame({
+        "Date": date_rng,
+        "Open": data - 2,
+        "High": data + 2,
+        "Low": data - 4,
+        "Close": data
+    })
+    df["Date"] = df["Date"].dt.tz_localize(None)
     return df
 
-df = load_data(symbol, start_date, end_date)
+df = load_data(selected_stock)
 
-# Validate data
-if df.empty or "Close" not in df.columns:
-    st.error("⚠️ No data found. Please check the stock symbol and date range.")
+st.sidebar.header("\ud83d\udcc5 Select Date Range")
+min_date = pd.to_datetime("2020-01-01")
+max_date = pd.to_datetime("2026-12-31")
+
+start_date = st.sidebar.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
+end_date = st.sidebar.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
+
+start_date = pd.to_datetime(start_date)
+end_date = pd.to_datetime(end_date)
+df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)]
+
+if df_filtered.empty:
+    st.error("\ud83d\udeab No data available for the selected date range. Please choose a different range.")
     st.stop()
 
-# Clean Close column
-df["Close"] = pd.to_numeric(df["Close"], errors="coerce")
-df.dropna(subset=["Close"], inplace=True)
+def generate_insights(df):
+    insights = []
+    if df["Close"].iloc[-1] > df["Close"].iloc[0]:
+        insights.append("\ud83d\udcc8 The stock showed an overall **uptrend** during the selected period.")
+    else:
+        insights.append("\ud83d\udcc9 The stock showed an overall **downtrend** during the selected period.")
 
-# Show basic statistics
-st.subheader(f"📊 Basic Statistics for {symbol}")
-st.write(df["Close"].describe()[["mean", "min", "max"]].rename({
-    "mean": "Average Close",
-    "min": "Minimum Close",
-    "max": "Maximum Close"
-}))
+    change = df["Close"].iloc[-1] - df["Close"].iloc[0]
+    pct_change = (change / df["Close"].iloc[0]) * 100
+    insights.append(f"\ud83d\udd0d The stock changed by **{change:.2f} USD** (**{pct_change:.2f}%**) from start to end.")
 
-# Plot
-st.subheader(f"📉 Closing Price Trend for {symbol}")
-fig, ax = plt.subplots()
-ax.plot(df["Date"], df["Close"], color='skyblue', linewidth=2)
-ax.set_xlabel("Date")
-ax.set_ylabel("Close Price")
-ax.set_title(f"{symbol} Closing Price")
-st.pyplot(fig)
+    max_row = df.loc[df["Close"].idxmax()]
+    min_row = df.loc[df["Close"].idxmin()]
+    insights.append(f"\ud83d\ude80 Highest price: **{max_row['Close']:.2f} USD** on **{max_row['Date'].date()}**.")
+    insights.append(f"\ud83d\udcc9 Lowest price: **{min_row['Close']:.2f} USD** on **{min_row['Date'].date()}**.")
 
-# Toggle to show raw data
-if st.checkbox("Show Raw Data"):
-    st.subheader("📄 Raw Data")
-    st.dataframe(df)
+    volatility = df["Close"].pct_change().std() * 100
+    insights.append(f"\ud83d\udcca Approx. volatility: **{volatility:.2f}%**.")
+
+    return insights
+
+# Layout with tabs for better organization
+with st.container():
+    tab1, tab2 = st.tabs(["\ud83d\udcca Visualizations", "\ud83d\udcd8 Insights"])
+
+    with tab1:
+        col1, col2 = st.columns([2, 1])
+
+        with col1:
+            st.subheader("Line Chart")
+            fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.subheader("Candlestick Chart")
+            fig_candle = go.Figure(data=[go.Candlestick(x=df_filtered["Date"], open=df_filtered["Open"],
+                                                        high=df_filtered["High"], low=df_filtered["Low"],
+                                                        close=df_filtered["Close"])])
+            st.plotly_chart(fig_candle, use_container_width=True)
+
+            st.subheader("Moving Averages & Bollinger Bands")
+            df_filtered['SMA_20'] = df_filtered['Close'].rolling(window=20).mean()
+            df_filtered['Upper_BB'] = df_filtered['SMA_20'] + 2 * df_filtered['Close'].rolling(window=20).std()
+            df_filtered['Lower_BB'] = df_filtered['SMA_20'] - 2 * df_filtered['Close'].rolling(window=20).std()
+            fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
+                             title="Moving Averages & Bollinger Bands")
+            st.plotly_chart(fig_ma, use_container_width=True)
+
+        with col2:
+            st.subheader("\ud83d\udcc5 Data Preview")
+            st.dataframe(df_filtered[['Date', 'Open', 'High', 'Low', 'Close']].tail(10), use_container_width=True)
+
+    with tab2:
+        st.subheader("\ud83d\udcd8 Stock Insights")
+        for insight in generate_insights(df_filtered):
+            st.markdown(insight)
+
+        st.markdown("---")
+        st.markdown("**Note:** All data is simulated for demonstration purposes only.")
