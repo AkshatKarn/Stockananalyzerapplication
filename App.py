@@ -7,14 +7,16 @@ from statsmodels.tsa.arima.model import ARIMA
 from io import BytesIO
 import yfinance as yf
 
+# --- Page Config ---
 st.set_page_config(page_title="AI-Powered Stock Analyzer", layout="wide")
 st.title("AI-Powered Stock Analyzer")
 st.write("Analyze stocks, visualize trends, get AI-driven insights, and generate reports!")
 
+# --- Sidebar: Stock Selection ---
 stocks = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "NFLX", "NVDA", "META", "IBM", "INTC", "AMD", "BABA",
           "ORCL", "PYPL", "DIS", "PEP", "KO", "CSCO", "UBER", "LYFT"]
-stock_input_method = st.sidebar.radio("Select stock input method:", ["Choose from list", "Enter manually"])
 
+stock_input_method = st.sidebar.radio("Select stock input method:", ["Choose from list", "Enter manually"])
 if stock_input_method == "Choose from list":
     selected_stock = st.sidebar.selectbox("Select a Stock", stocks)
 else:
@@ -25,13 +27,7 @@ if st.sidebar.button("Refresh Data"):
     st.session_state.clear()
     st.experimental_rerun()
 
-@st.cache_data
-
-def load_data_yfinance(stock, start, end):
-    df = yf.download(stock, start=start, end=end)
-    df.reset_index(inplace=True)
-    return df
-
+# --- Sidebar: Date Range ---
 st.sidebar.header("Select Date Range")
 min_date = pd.to_datetime("2015-01-01")
 max_date = pd.to_datetime("2025-12-31")
@@ -42,14 +38,26 @@ end_date = st.sidebar.date_input("End Date", value=max_date, min_value=min_date,
 start_date = pd.to_datetime(start_date)
 end_date = pd.to_datetime(end_date)
 
+# --- Load Data ---
+@st.cache_data
+def load_data_yfinance(stock, start, end):
+    df = yf.download(stock, start=start, end=end)
+    df.reset_index(inplace=True)
+    return df
+
 df = load_data_yfinance(selected_stock, start_date, end_date)
 
+# --- Data Cleaning ---
 if df.empty:
     st.error("No data available for the selected date range. Please choose a different range or check the stock symbol.")
     st.stop()
 
-# Rest of the code remains unchanged
+df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+df["Close"] = pd.to_numeric(df["Close"], errors="coerce")
+df = df.dropna(subset=["Date", "Close"])
+df = df.sort_values("Date")
 
+# --- Insights ---
 def generate_insights(df):
     insights = []
     if df["Close"].iloc[-1] > df["Close"].iloc[0]:
@@ -71,6 +79,7 @@ def generate_insights(df):
 
     return insights
 
+# --- Report Generator ---
 def generate_report(df):
     output = BytesIO()
     report_text = "Stock Report\n\n"
@@ -81,6 +90,7 @@ def generate_report(df):
     output.seek(0)
     return output
 
+# --- Tabs ---
 with st.container():
     tab1, tab2, tab3 = st.tabs(["Visualizations", "Insights", "Report Generator"])
 
@@ -89,8 +99,8 @@ with st.container():
 
         with col1:
             st.subheader("Line Chart")
-            fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
-            st.plotly_chart(fig, use_container_width=True)
+            fig_line = px.line(df, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
+            st.plotly_chart(fig_line, use_container_width=True)
 
             st.subheader("Candlestick Chart")
             fig_candle = go.Figure(data=[go.Candlestick(x=df["Date"], open=df["Open"],
