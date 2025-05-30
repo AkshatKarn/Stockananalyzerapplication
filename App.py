@@ -90,7 +90,7 @@ if menu == "Stock Analysis":
     if data_dict:
         for stock, df_filtered in data_dict.items():
             st.subheader(f"Stock: {stock}")
-            tab1, tab2, tab3 = st.tabs(["Visualizations", "Table", "Insights"])
+            tab1, tab2, tab3, tab4 = st.tabs(["Visualizations", "Table", "Insights", "Investment Analysis"])
 
             with tab1:
                 fig = px.line(df_filtered, x="Date", y="Close", title=f"{stock} Price Over Time", color_discrete_sequence=["blue"])
@@ -124,53 +124,26 @@ if menu == "Stock Analysis":
                 for insight in insights:
                     st.markdown(insight)
 
-elif menu == "Stock Comparison":
-    st.sidebar.header("Stock Comparison")
-    selected_compare = st.sidebar.multiselect("Select Stocks to Compare", stocks, default=["AAPL", "GOOGL"])
+            with tab4:
+                st.markdown("### 📈 Investment Details")
+                num_stocks = st.number_input(f"How many {stock} stocks did you buy?", min_value=0, value=0, key=f"{stock}_num")
+                buy_price = st.number_input(f"At what price per stock did you buy {stock}?", min_value=0.0, value=0.0, key=f"{stock}_price")
+                
+                if num_stocks > 0 and buy_price > 0:
+                    current_price = df_filtered["Close"].iloc[-1]
+                    total_invested = num_stocks * buy_price
+                    current_value = num_stocks * current_price
+                    profit_loss = current_value - total_invested
 
-    compare_dict = {}
-    rec_scores = {"BUY": 2, "HOLD": 1, "SELL": 0}
-    for stock in selected_compare:
-        df = load_data(stock)
-        df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)]
-        if df_filtered.empty:
-            continue
-        compare_dict[stock] = df_filtered
-
-    if compare_dict:
-        st.subheader("Stock Comparison: Visualizations")
-        fig_compare = go.Figure()
-        for stock, df in compare_dict.items():
-            fig_compare.add_trace(go.Scatter(x=df["Date"], y=df["Close"], mode='lines', name=stock))
-        fig_compare.update_layout(title="Closing Prices Comparison", xaxis_title="Date", yaxis_title="Price (USD)")
-        st.plotly_chart(fig_compare, use_container_width=True)
-
-        fig_volatility = go.Figure()
-        for stock, df in compare_dict.items():
-            volatility = df["Close"].pct_change().std() * 100
-            fig_volatility.add_trace(go.Bar(x=[stock], y=[volatility], name=stock))
-        fig_volatility.update_layout(title="Volatility Comparison")
-        st.plotly_chart(fig_volatility, use_container_width=True)
-
-        fig_return = go.Figure()
-        for stock, df in compare_dict.items():
-            change = df["Close"].iloc[-1] - df["Close"].iloc[0]
-            pct_change = (change / df["Close"].iloc[0]) * 100
-            fig_return.add_trace(go.Bar(x=[stock], y=[pct_change], name=stock))
-        fig_return.update_layout(title="Percentage Return Comparison")
-        st.plotly_chart(fig_return, use_container_width=True)
-
-        st.subheader("Stock Comparison: Combined Insights")
-        final_scores = {}
-        for stock, df in compare_dict.items():
-            _, recommendation = generate_insights(df)
-            final_scores[stock] = rec_scores[recommendation]
-            st.markdown(f"**{stock}**: {recommendation}")
-
-        best_stock = max(final_scores, key=final_scores.get)
-        st.success(f"Based on current analysis, the best stock to consider is: **{best_stock}**")
-
-        st.subheader("Combined Table View")
-        for stock, df in compare_dict.items():
-            st.markdown(f"### {stock}")
-            st.dataframe(df[['Date', 'Open', 'High', 'Low', 'Close']], use_container_width=True)
+                    st.write(f"**Current Price:** ${current_price:.2f}")
+                    st.write(f"**Total Invested:** ${total_invested:.2f}")
+                    st.write(f"**Current Value:** ${current_value:.2f}")
+                    st.write(f"**Profit/Loss:** ${profit_loss:.2f}")
+                    if profit_loss > 0:
+                        st.success("You're in profit! 🎉")
+                    elif profit_loss < 0:
+                        st.error("You're at a loss. 📉")
+                    else:
+                        st.info("No gain, no loss. 📊")
+                else:
+                    st.info("Enter valid stock count and purchase price to see investment summary.")
