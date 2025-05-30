@@ -91,7 +91,7 @@ def create_pdf_report(insights, figures):
             pdf.image(tmpfile.name, x=10, y=10, w=pdf.w - 20)
             os.unlink(tmpfile.name)
 
-    return pdf.output(dest='S').encode('latin-1', errors='ignore')
+    return pdf.output(dest='S').encode('utf-8')
 
 # Load and visualize
 data_dict = {}
