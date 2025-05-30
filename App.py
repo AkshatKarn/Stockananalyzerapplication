@@ -44,8 +44,13 @@ def load_data(stock):
 df = load_data(selected_stock)
 
 st.sidebar.header("📅 Select Date Range")
-start_date = st.sidebar.date_input("Start Date", df["Date"].min())
-end_date = st.sidebar.date_input("End Date", df["Date"].max())
+
+min_date = pd.to_datetime("2020-01-01")
+max_date = pd.to_datetime("2026-12-31")
+
+start_date = st.sidebar.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
+end_date = st.sidebar.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
+
 
 # Ensure proper filtering
 start_date = pd.to_datetime(start_date)
