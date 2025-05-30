@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
-import datetime
 
 st.set_page_config(page_title="AI-Powered Stock Analyzer", layout="wide")
 st.title("AI-Powered Stock Analyzer")
@@ -12,19 +11,13 @@ st.write("Analyze stocks, visualize trends, and get AI-driven insights!")
 stocks = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "NFLX", "NVDA", "META", "IBM", "INTC", "AMD", "BABA",
           "ORCL", "PYPL", "DIS", "PEP", "KO", "CSCO", "UBER", "LYFT"]
 
-# Sidebar: stock selection
 st.sidebar.header("Stock Selection & Customization")
-selected_stocks = st.sidebar.multiselect("Select Stocks to Analyze", stocks, default=["AAPL"])
+selected_stocks = st.sidebar.multiselect("Select Stocks to Compare", stocks, default=["AAPL"])
+show_comparison = st.sidebar.checkbox("Show Stock Comparison")
 
-st.sidebar.header("Select Date Range")
-min_date = pd.to_datetime("2020-01-01")
-max_date = pd.to_datetime("2026-12-31")
-
-start_date = st.sidebar.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
-end_date = st.sidebar.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
-
-start_date = pd.to_datetime(start_date)
-end_date = pd.to_datetime(end_date)
+if st.sidebar.button("Refresh Data"):
+    st.session_state.clear()
+    st.experimental_rerun()
 
 @st.cache_data
 def load_data(stock):
@@ -39,6 +32,16 @@ def load_data(stock):
     })
     df["Date"] = df["Date"].dt.tz_localize(None)
     return df
+
+st.sidebar.header("Select Date Range")
+min_date = pd.to_datetime("2020-01-01")
+max_date = pd.to_datetime("2026-12-31")
+
+start_date = st.sidebar.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
+end_date = st.sidebar.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
+
+start_date = pd.to_datetime(start_date)
+end_date = pd.to_datetime(end_date)
 
 def generate_insights(df):
     insights = []
@@ -68,7 +71,7 @@ def generate_insights(df):
 
     return insights
 
-# Data loading and filtering
+# Load and visualize
 data_dict = {}
 for stock in selected_stocks:
     df = load_data(stock)
@@ -78,42 +81,45 @@ for stock in selected_stocks:
         continue
     data_dict[stock] = df_filtered
 
-# Stock analysis section
+# Visualization Section
 if data_dict:
     for stock, df_filtered in data_dict.items():
         st.subheader(f"Stock: {stock}")
-        tab1, tab2, tab3 = st.tabs(["Visualizations", "Insights", "Table"])
+        tab1, tab2, tab3 = st.tabs(["Visualizations", "Table", "Insights"])
 
         with tab1:
-            fig = px.line(df_filtered, x="Date", y="Close", title=f"{stock} Price Over Time", color_discrete_sequence=["blue"])
-            st.plotly_chart(fig, use_container_width=True)
+            col1, _ = st.columns([2, 1])
 
-            fig_candle = go.Figure(data=[go.Candlestick(x=df_filtered["Date"], open=df_filtered["Open"],
-                                                        high=df_filtered["High"], low=df_filtered["Low"],
-                                                        close=df_filtered["Close"])])
-            fig_candle.update_layout(title="Candlestick Chart")
-            st.plotly_chart(fig_candle, use_container_width=True)
+            with col1:
+                fig = px.line(df_filtered, x="Date", y="Close", title=f"{stock} Price Over Time", color_discrete_sequence=["blue"])
+                st.plotly_chart(fig, use_container_width=True)
 
-            df_filtered['SMA_20'] = df_filtered['Close'].rolling(window=20).mean()
-            df_filtered['Upper_BB'] = df_filtered['SMA_20'] + 2 * df_filtered['Close'].rolling(window=20).std()
-            df_filtered['Lower_BB'] = df_filtered['SMA_20'] - 2 * df_filtered['Close'].rolling(window=20).std()
-            fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
-                             title="Moving Averages & Bollinger Bands")
-            st.plotly_chart(fig_ma, use_container_width=True)
+                fig_candle = go.Figure(data=[go.Candlestick(x=df_filtered["Date"], open=df_filtered["Open"],
+                                                            high=df_filtered["High"], low=df_filtered["Low"],
+                                                            close=df_filtered["Close"])] )
+                fig_candle.update_layout(title="Candlestick Chart")
+                st.plotly_chart(fig_candle, use_container_width=True)
+
+                df_filtered['SMA_20'] = df_filtered['Close'].rolling(window=20).mean()
+                df_filtered['Upper_BB'] = df_filtered['SMA_20'] + 2 * df_filtered['Close'].rolling(window=20).std()
+                df_filtered['Lower_BB'] = df_filtered['SMA_20'] - 2 * df_filtered['Close'].rolling(window=20).std()
+                fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
+                                 title="Moving Averages & Bollinger Bands")
+                st.plotly_chart(fig_ma, use_container_width=True)
 
         with tab2:
+            st.subheader("Full Data Table")
+            st.dataframe(df_filtered[['Date', 'Open', 'High', 'Low', 'Close']], use_container_width=True)
+
+        with tab3:
             insights = generate_insights(df_filtered)
             for insight in insights:
                 st.markdown(insight)
             st.markdown("---")
             st.markdown("**Note:** All data is simulated for demonstration purposes only.")
 
-        with tab3:
-            st.dataframe(df_filtered[['Date', 'Open', 'High', 'Low', 'Close']].tail(30), use_container_width=True)
-
-# Stock comparison chart in sidebar
-if st.sidebar.checkbox("Show Stock Comparison Chart"):
-    if data_dict:
+    # Combined comparison
+    if show_comparison:
         st.subheader("Stock Comparison")
         fig_compare = go.Figure()
         for stock, df_filtered in data_dict.items():
