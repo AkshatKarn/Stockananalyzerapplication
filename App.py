@@ -6,7 +6,7 @@ import plotly.express as px
 from statsmodels.tsa.arima.model import ARIMA
 
 st.set_page_config(page_title="AI-Powered Stock Analyzer", layout="wide")
-st.title(" AI-Powered Stock Analyzer")
+st.title("AI-Powered Stock Analyzer")
 st.write("Analyze stocks, visualize trends, and get AI-driven insights!")
 
 stocks = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "NFLX", "NVDA", "META", "IBM", "INTC", "AMD", "BABA",
