@@ -26,7 +26,6 @@ if st.sidebar.button("💡 AI Stock Picks"):
 
 @st.cache_data
 def load_data(stock):
-    # Extended date range from 2020 to 2026
     date_rng = pd.date_range(start="2020-01-01", end="2026-12-31", freq="D")
     data = np.random.randn(len(date_rng)) * 10 + 100  # Simulated price data
     df = pd.DataFrame({
@@ -39,31 +38,30 @@ def load_data(stock):
     df["Date"] = df["Date"].dt.tz_localize(None)
     return df
 
-
 df = load_data(selected_stock)
 
 st.sidebar.header("📅 Select Date Range")
-
 min_date = pd.to_datetime("2020-01-01")
 max_date = pd.to_datetime("2026-12-31")
 
 start_date = st.sidebar.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
 end_date = st.sidebar.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
 
-# Ensure proper filtering
 start_date = pd.to_datetime(start_date)
 end_date = pd.to_datetime(end_date)
 df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)]
 
-# Check for empty filtered DataFrame
 if df_filtered.empty:
     st.error("🚫 No data available for the selected date range. Please choose a different range.")
     st.stop()
 
-# Create two columns: left for graphs (70%), right for info (30%)
-left_col, right_col = st.columns([7, 3])
+# Layout: 2 columns left (7 units), right (5 units) for roughly 58%-42%
+left_col, right_col = st.columns([7,5])
 
 with left_col:
+    # Limit width with container div using markdown & CSS trick
+    st.markdown("<div style='max-width: 600px;'>", unsafe_allow_html=True)
+
     # Price line chart
     fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
     st.plotly_chart(fig, use_container_width=False, width=600)
@@ -83,89 +81,8 @@ with left_col:
                      labels={"value": "Stock Price"}, title="Moving Averages & Bollinger Bands")
     st.plotly_chart(fig_ma, use_container_width=False, width=600)
 
-    # ARIMA Prediction
     def train_arima(df):
         model = ARIMA(df["Close"], order=(5, 1, 0))
         model_fit = model.fit()
         forecast = model_fit.forecast(steps=180)
-        future_dates = pd.date_range(start=df["Date"].iloc[-1], periods=181, freq="D")[1:]
-        return pd.DataFrame({"Date": future_dates, "Predicted Price": forecast})
-
-    forecast_df = train_arima(df_filtered)
-    st.write(f"### 🔮 ARIMA Prediction for {selected_stock}")
-    fig_pred = px.line(forecast_df, x="Date", y="Predicted Price", title="Predicted Stock Prices",
-                       color_discrete_sequence=["red"])
-    st.plotly_chart(fig_pred, use_container_width=False, width=600)
-
-    # Volatility Analysis
-    st.write("### 📊 Volatility Analysis")
-    df_filtered['Volatility'] = df_filtered['Close'].pct_change()
-    fig_volatility = px.line(df_filtered, x="Date", y="Volatility", title="Stock Volatility Over Time")
-    st.plotly_chart(fig_volatility, use_container_width=False, width=600)
-
-    # RSI Analysis
-    st.write("### 📊 RSI (Relative Strength Index) Analysis")
-    df_filtered['RSI'] = 100 - (100 / (1 + df_filtered['Close'].pct_change().rolling(14).mean()))
-    fig_rsi = px.line(df_filtered, x="Date", y="RSI", title="Relative Strength Index (RSI)")
-    st.plotly_chart(fig_rsi, use_container_width=False, width=600)
-
-    # MACD
-    st.write("### 📈 MACD (Moving Average Convergence Divergence)")
-    df_filtered['EMA_12'] = df_filtered['Close'].ewm(span=12, adjust=False).mean()
-    df_filtered['EMA_26'] = df_filtered['Close'].ewm(span=26, adjust=False).mean()
-    df_filtered['MACD'] = df_filtered['EMA_12'] - df_filtered['EMA_26']
-    fig_macd = px.line(df_filtered, x="Date", y="MACD", title="MACD Indicator")
-    st.plotly_chart(fig_macd, use_container_width=False, width=600)
-
-    # Intraday Price Movement
-    st.write("### 📊 Intraday Price Movement")
-    df_filtered['Intraday Change'] = df_filtered['Close'] - df_filtered['Open']
-    fig_intraday = px.bar(df_filtered, x="Date", y="Intraday Change", title="Intraday Price Changes")
-    st.plotly_chart(fig_intraday, use_container_width=False, width=600)
-
-with right_col:
-    st.write(f"### 📜 Historical Data for {selected_stock}")
-    st.dataframe(df_filtered.head())
-
-    st.write("### 📉 Support & Resistance Levels")
-    resistance = df_filtered['High'].max()
-    support = df_filtered['Low'].min()
-    st.write(f"Resistance Level: {resistance:.2f}")
-    st.write(f"Support Level: {support:.2f}")
-
-    st.write("### 🤖 AI-Powered Stock Recommendations")
-    if forecast_df['Predicted Price'].iloc[-1] > df_filtered['Close'].iloc[-1] * 1.05:
-        st.success("📈 **BUY:** Expected upward trend.")
-    elif forecast_df['Predicted Price'].iloc[-1] < df_filtered['Close'].iloc[-1] * 0.95:
-        st.error("📉 **SELL:** Expected downward trend.")
-    else:
-        st.warning("⚖ **HOLD:** Market stable.")
-
-    st.markdown("---")
-
-    st.write("## 📚 Understanding the Indicators and Charts")
-
-    st.markdown("""
-    **Stock Price Over Time:**  
-    Shows the closing price trends, helping identify overall market direction.
-
-    **Candlestick Chart:**  
-    Displays open, high, low, and close prices in each time interval, revealing market sentiment and potential reversals.
-
-    **Moving Averages & Bollinger Bands:**  
-    Moving averages smooth out price data to identify trends. Bollinger Bands measure volatility; prices moving outside bands may signal overbought or oversold conditions.
-
-    **ARIMA Forecasting:**  
-    A statistical model predicting future prices based on past data patterns, useful for short-term forecasting.
-
-    **Volatility Analysis:**  
-    Measures price fluctuations; higher volatility implies higher risk and potential returns.
-
-    **Relative Strength Index (RSI):**  
-    Indicates momentum and overbought (>70) or oversold (<30) conditions.
-
-    **MACD Indicator:**  
-    Shows trend strength and potential reversals by comparing two exponential moving averages.
-
-    **Support & Resistance Levels:**  
-    Key price points where stocks historic
+        future_dates = pd.date_range(start=df["Date"].iloc[-1], periods=181, fr
