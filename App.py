@@ -27,7 +27,7 @@ if st.sidebar.button("💡 AI Stock Picks"):
 @st.cache_data
 def load_data(stock):
     date_rng = pd.date_range(start="2020-01-01", end="2026-12-31", freq="D")
-    data = np.random.randn(len(date_rng)) * 10 + 100  # Simulated price data
+    data = np.random.randn(len(date_rng)) * 10 + 100
     df = pd.DataFrame({
         "Date": date_rng,
         "Open": data - 2,
@@ -55,24 +55,19 @@ if df_filtered.empty:
     st.error("🚫 No data available for the selected date range. Please choose a different range.")
     st.stop()
 
-# Layout: 2 columns left (7 units), right (5 units) for roughly 58%-42%
-left_col, right_col = st.columns([7,5])
+left_col, right_col = st.columns([7, 5])
 
 with left_col:
-    # Limit width with container div using markdown & CSS trick
     st.markdown("<div style='max-width: 600px;'>", unsafe_allow_html=True)
 
-    # Price line chart
     fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
     st.plotly_chart(fig, use_container_width=False, width=600)
 
-    # Candlestick chart
     fig_candle = go.Figure(data=[go.Candlestick(x=df_filtered["Date"], open=df_filtered["Open"],
                                                high=df_filtered["High"], low=df_filtered["Low"],
-                                               close=df_filtered["Close"], name="Candlestick")])
+                                               close=df_filtered["Close"])])
     st.plotly_chart(fig_candle, use_container_width=False, width=600)
 
-    # Moving Averages & Bollinger Bands
     st.write("### 📊 Moving Averages & Bollinger Bands")
     df_filtered['SMA_20'] = df_filtered['Close'].rolling(window=20).mean()
     df_filtered['Upper_BB'] = df_filtered['SMA_20'] + 2 * df_filtered['Close'].rolling(window=20).std()
@@ -85,4 +80,47 @@ with left_col:
         model = ARIMA(df["Close"], order=(5, 1, 0))
         model_fit = model.fit()
         forecast = model_fit.forecast(steps=180)
-        future_dates = pd.date_range(start=df["Date"].iloc[-1], periods=181, fr
+        future_dates = pd.date_range(start=df["Date"].iloc[-1] + pd.Timedelta(days=1), periods=180)
+        return pd.DataFrame({"Date": future_dates, "Predicted Price": forecast})
+
+    forecast_df = train_arima(df_filtered)
+
+    st.write(f"### 🔮 ARIMA Prediction for {selected_stock}")
+    fig_pred = px.line(forecast_df, x="Date", y="Predicted Price", title="Predicted Stock Prices",
+                       color_discrete_sequence=["red"])
+    st.plotly_chart(fig_pred, use_container_width=False, width=600)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with right_col:
+    st.write(f"### 📜 Historical Data for {selected_stock}")
+    st.dataframe(df_filtered.head())
+
+    st.write("### 📉 Support & Resistance Levels")
+    resistance = df_filtered['High'].max()
+    support = df_filtered['Low'].min()
+    st.write(f"Resistance Level: {resistance:.2f}")
+    st.write(f"Support Level: {support:.2f}")
+
+    st.write("### 🤖 AI-Powered Stock Recommendations")
+    if forecast_df['Predicted Price'].iloc[-1] > df_filtered['Close'].iloc[-1] * 1.05:
+        st.success("📈 BUY: Expected upward trend.")
+    elif forecast_df['Predicted Price'].iloc[-1] < df_filtered['Close'].iloc[-1] * 0.95:
+        st.error("📉 SELL: Expected downward trend.")
+    else:
+        st.warning("⚖ HOLD: Market stable.")
+
+    st.markdown("---")
+
+    st.write("## 📚 Understanding the Indicators and Charts")
+    st.markdown("""
+    **Stock Price Over Time:** Visual trend of closing prices.
+
+    **Candlestick Chart:** Visualizes OHLC data and reveals sentiment.
+
+    **Moving Averages & Bollinger Bands:** Identify trends and volatility.
+
+    **ARIMA Forecasting:** Predicts future stock prices based on historical data.
+
+    **Support & Resistance:** Shows key psychological price levels.
+    """)
