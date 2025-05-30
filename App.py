@@ -89,7 +89,7 @@ with st.container():
 
         with col1:
             st.subheader("Line Chart")
-            fig = px.line(df, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
+            fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
             st.plotly_chart(fig, use_container_width=True)
 
             st.subheader("Candlestick Chart")
