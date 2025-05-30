@@ -17,12 +17,6 @@ st.sidebar.header("\ud83d\udcca Stock Selection & Customization")
 if st.sidebar.button("\ud83d\udd04 Refresh Data"):
     st.session_state.clear()
     st.experimental_rerun()
-if st.sidebar.button("\ud83d\udd0d Compare Multiple Stocks"):
-    st.warning("Feature coming soon!")
-if st.sidebar.button("\ud83d\udcca View Market Trends"):
-    st.info("Market trend analysis coming soon!")
-if st.sidebar.button("\ud83d\udca1 AI Stock Picks"):
-    st.success("Get AI-powered stock recommendations soon!")
 
 @st.cache_data
 def load_data(stock):
@@ -68,35 +62,48 @@ def generate_insights(df):
 
     max_row = df.loc[df["Close"].idxmax()]
     min_row = df.loc[df["Close"].idxmin()]
-    insights.append(f"\ud83d\ude80 The highest price was **{max_row['Close']:.2f} USD** on **{max_row['Date'].date()}**.")
-    insights.append(f"\ud83d\udcc9 The lowest price was **{min_row['Close']:.2f} USD** on **{min_row['Date'].date()}**.")
+    insights.append(f"\ud83d\ude80 Highest price: **{max_row['Close']:.2f} USD** on **{max_row['Date'].date()}**.")
+    insights.append(f"\ud83d\udcc9 Lowest price: **{min_row['Close']:.2f} USD** on **{min_row['Date'].date()}**.")
 
     volatility = df["Close"].pct_change().std() * 100
-    insights.append(f"\ud83d\udcca The stock had a volatility of approximately **{volatility:.2f}%**.")
+    insights.append(f"\ud83d\udcca Approx. volatility: **{volatility:.2f}%**.")
 
     return insights
 
-left_col, right_col = st.columns([7, 5])
+# Layout with tabs for better organization
+with st.container():
+    tab1, tab2 = st.tabs(["\ud83d\udcca Visualizations", "\ud83d\udcd8 Insights"])
 
-with left_col:
-    st.markdown("<div style='max-width: 600px;'>", unsafe_allow_html=True)
+    with tab1:
+        col1, col2 = st.columns([2, 1])
 
-    fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
-    st.plotly_chart(fig, use_container_width=False, width=600)
+        with col1:
+            st.subheader("Line Chart")
+            fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
+            st.plotly_chart(fig, use_container_width=True)
 
-    fig_candle = go.Figure(data=[go.Candlestick(x=df_filtered["Date"], open=df_filtered["Open"],
-                                                high=df_filtered["High"], low=df_filtered["Low"],
-                                                close=df_filtered["Close"], name="Candlestick")])
-    st.plotly_chart(fig_candle, use_container_width=False, width=600)
+            st.subheader("Candlestick Chart")
+            fig_candle = go.Figure(data=[go.Candlestick(x=df_filtered["Date"], open=df_filtered["Open"],
+                                                        high=df_filtered["High"], low=df_filtered["Low"],
+                                                        close=df_filtered["Close"])])
+            st.plotly_chart(fig_candle, use_container_width=True)
 
-    df_filtered['SMA_20'] = df_filtered['Close'].rolling(window=20).mean()
-    df_filtered['Upper_BB'] = df_filtered['SMA_20'] + 2 * df_filtered['Close'].rolling(window=20).std()
-    df_filtered['Lower_BB'] = df_filtered['SMA_20'] - 2 * df_filtered['Close'].rolling(window=20).std()
-    fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
-                     labels={"value": "Stock Price"}, title="Moving Averages & Bollinger Bands")
-    st.plotly_chart(fig_ma, use_container_width=False, width=600)
+            st.subheader("Moving Averages & Bollinger Bands")
+            df_filtered['SMA_20'] = df_filtered['Close'].rolling(window=20).mean()
+            df_filtered['Upper_BB'] = df_filtered['SMA_20'] + 2 * df_filtered['Close'].rolling(window=20).std()
+            df_filtered['Lower_BB'] = df_filtered['SMA_20'] - 2 * df_filtered['Close'].rolling(window=20).std()
+            fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
+                             title="Moving Averages & Bollinger Bands")
+            st.plotly_chart(fig_ma, use_container_width=True)
 
-with right_col:
-    st.subheader("\ud83d\udcd8 Stock Insights")
-    for insight in generate_insights(df_filtered):
-        st.markdown(insight)
+        with col2:
+            st.subheader("\ud83d\udcc5 Data Preview")
+            st.dataframe(df_filtered[['Date', 'Open', 'High', 'Low', 'Close']].tail(10), use_container_width=True)
+
+    with tab2:
+        st.subheader("\ud83d\udcd8 Stock Insights")
+        for insight in generate_insights(df_filtered):
+            st.markdown(insight)
+
+        st.markdown("---")
+        st.markdown("**Note:** All data is simulated for demonstration purposes only.")
