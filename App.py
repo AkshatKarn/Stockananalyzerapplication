@@ -6,15 +6,15 @@ import plotly.express as px
 from statsmodels.tsa.arima.model import ARIMA
 
 st.set_page_config(page_title="AI-Powered Stock Analyzer", layout="wide")
-st.title("\ud83d\udcca AI-Powered Stock Analyzer")
+st.title(" AI-Powered Stock Analyzer")
 st.write("Analyze stocks, visualize trends, and get AI-driven insights!")
 
 stocks = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "NFLX", "NVDA", "META", "IBM", "INTC", "AMD", "BABA",
           "ORCL", "PYPL", "DIS", "PEP", "KO", "CSCO", "UBER", "LYFT"]
-selected_stock = st.sidebar.selectbox("\ud83d\udccc Select a Stock", stocks)
+selected_stock = st.sidebar.selectbox("Select a Stock", stocks)
 
-st.sidebar.header("\ud83d\udcca Stock Selection & Customization")
-if st.sidebar.button("\ud83d\udd04 Refresh Data"):
+st.sidebar.header("Stock Selection & Customization")
+if st.sidebar.button("Refresh Data"):
     st.session_state.clear()
     st.experimental_rerun()
 
@@ -34,7 +34,7 @@ def load_data(stock):
 
 df = load_data(selected_stock)
 
-st.sidebar.header("\ud83d\udcc5 Select Date Range")
+st.sidebar.header("Select Date Range")
 min_date = pd.to_datetime("2020-01-01")
 max_date = pd.to_datetime("2026-12-31")
 
@@ -46,33 +46,33 @@ end_date = pd.to_datetime(end_date)
 df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)]
 
 if df_filtered.empty:
-    st.error("\ud83d\udeab No data available for the selected date range. Please choose a different range.")
+    st.error("No data available for the selected date range. Please choose a different range.")
     st.stop()
 
 def generate_insights(df):
     insights = []
     if df["Close"].iloc[-1] > df["Close"].iloc[0]:
-        insights.append("\ud83d\udcc8 The stock showed an overall **uptrend** during the selected period.")
+        insights.append("The stock showed an overall **uptrend** during the selected period.")
     else:
-        insights.append("\ud83d\udcc9 The stock showed an overall **downtrend** during the selected period.")
+        insights.append("The stock showed an overall **downtrend** during the selected period.")
 
     change = df["Close"].iloc[-1] - df["Close"].iloc[0]
     pct_change = (change / df["Close"].iloc[0]) * 100
-    insights.append(f"\ud83d\udd0d The stock changed by **{change:.2f} USD** (**{pct_change:.2f}%**) from start to end.")
+    insights.append(f"The stock changed by **{change:.2f} USD** (**{pct_change:.2f}%**) from start to end.")
 
     max_row = df.loc[df["Close"].idxmax()]
     min_row = df.loc[df["Close"].idxmin()]
-    insights.append(f"\ud83d\ude80 Highest price: **{max_row['Close']:.2f} USD** on **{max_row['Date'].date()}**.")
-    insights.append(f"\ud83d\udcc9 Lowest price: **{min_row['Close']:.2f} USD** on **{min_row['Date'].date()}**.")
+    insights.append(f"Highest price: **{max_row['Close']:.2f} USD** on **{max_row['Date'].date()}**.")
+    insights.append(f"Lowest price: **{min_row['Close']:.2f} USD** on **{min_row['Date'].date()}**.")
 
     volatility = df["Close"].pct_change().std() * 100
-    insights.append(f"\ud83d\udcca Approx. volatility: **{volatility:.2f}%**.")
+    insights.append(f"Approx. volatility: **{volatility:.2f}%**.")
 
     return insights
 
 # Layout with tabs for better organization
 with st.container():
-    tab1, tab2 = st.tabs(["\ud83d\udcca Visualizations", "\ud83d\udcd8 Insights"])
+    tab1, tab2 = st.tabs(["Visualizations", "\ud83d\udcd8 Insights"])
 
     with tab1:
         col1, col2 = st.columns([2, 1])
@@ -97,11 +97,11 @@ with st.container():
             st.plotly_chart(fig_ma, use_container_width=True)
 
         with col2:
-            st.subheader("\ud83d\udcc5 Data Preview")
+            st.subheader("Data Preview")
             st.dataframe(df_filtered[['Date', 'Open', 'High', 'Low', 'Close']].tail(10), use_container_width=True)
 
     with tab2:
-        st.subheader("\ud83d\udcd8 Stock Insights")
+        st.subheader("Stock Insights")
         for insight in generate_insights(df_filtered):
             st.markdown(insight)
 
