@@ -6,3 +6,4 @@ plotly
 seaborn
 yfinance  
 statsmodels
+fpdf
