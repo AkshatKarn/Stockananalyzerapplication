@@ -27,11 +27,19 @@ if st.sidebar.button("💡 AI Stock Picks"):
 
 @st.cache_data
 def load_data(stock):
-    date_rng = pd.date_range(start="2025-01-01", end="2026-01-01", freq="D")  # Available data only for 2025
-    data = np.random.randn(len(date_rng)) * 10 + 100
-    df = pd.DataFrame({"Date": date_rng, "Open": data-2, "High": data+2, "Low": data-4, "Close": data})
+    # Extended date range from 2020 to 2026
+    date_rng = pd.date_range(start="2020-01-01", end="2026-12-31", freq="D")
+    data = np.random.randn(len(date_rng)) * 10 + 100  # Simulated price data
+    df = pd.DataFrame({
+        "Date": date_rng,
+        "Open": data - 2,
+        "High": data + 2,
+        "Low": data - 4,
+        "Close": data
+    })
     df["Date"] = df["Date"].dt.tz_localize(None)
     return df
+
 
 df = load_data(selected_stock)
 
