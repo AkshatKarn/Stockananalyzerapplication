@@ -4,14 +4,21 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from statsmodels.tsa.arima.model import ARIMA
+from io import BytesIO
+import yfinance as yf
 
 st.set_page_config(page_title="AI-Powered Stock Analyzer", layout="wide")
 st.title("AI-Powered Stock Analyzer")
-st.write("Analyze stocks, visualize trends, and get AI-driven insights")
+st.write("Analyze stocks, visualize trends, get AI-driven insights, and generate reports!")
 
 stocks = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "NFLX", "NVDA", "META", "IBM", "INTC", "AMD", "BABA",
           "ORCL", "PYPL", "DIS", "PEP", "KO", "CSCO", "UBER", "LYFT"]
-selected_stock = st.sidebar.selectbox("Select a Stock", stocks)
+stock_input_method = st.sidebar.radio("Select stock input method:", ["Choose from list", "Enter manually"])
+
+if stock_input_method == "Choose from list":
+    selected_stock = st.sidebar.selectbox("Select a Stock", stocks)
+else:
+    selected_stock = st.sidebar.text_input("Enter Stock Symbol (e.g. AAPL)", value="AAPL")
 
 st.sidebar.header("Stock Selection & Customization")
 if st.sidebar.button("Refresh Data"):
@@ -19,35 +26,29 @@ if st.sidebar.button("Refresh Data"):
     st.experimental_rerun()
 
 @st.cache_data
-def load_data(stock):
-    date_rng = pd.date_range(start="2020-01-01", end="2026-12-31", freq="D")
-    data = np.random.randn(len(date_rng)) * 10 + 100
-    df = pd.DataFrame({
-        "Date": date_rng,
-        "Open": data - 2,
-        "High": data + 2,
-        "Low": data - 4,
-        "Close": data
-    })
-    df["Date"] = df["Date"].dt.tz_localize(None)
+
+def load_data_yfinance(stock, start, end):
+    df = yf.download(stock, start=start, end=end)
+    df.reset_index(inplace=True)
     return df
 
-df = load_data(selected_stock)
-
 st.sidebar.header("Select Date Range")
-min_date = pd.to_datetime("2020-01-01")
-max_date = pd.to_datetime("2026-12-31")
+min_date = pd.to_datetime("2015-01-01")
+max_date = pd.to_datetime("2025-12-31")
 
 start_date = st.sidebar.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
 end_date = st.sidebar.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
 
 start_date = pd.to_datetime(start_date)
 end_date = pd.to_datetime(end_date)
-df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)]
 
-if df_filtered.empty:
-    st.error("No data available for the selected date range. Please choose a different range.")
+df = load_data_yfinance(selected_stock, start_date, end_date)
+
+if df.empty:
+    st.error("No data available for the selected date range. Please choose a different range or check the stock symbol.")
     st.stop()
+
+# Rest of the code remains unchanged
 
 def generate_insights(df):
     insights = []
@@ -66,78 +67,57 @@ def generate_insights(df):
     insights.append(f"Lowest price: **{min_row['Close']:.2f} USD** on **{min_row['Date'].date()}**.")
 
     volatility = df["Close"].pct_change().std() * 100
-    insights.append(f"Approximate volatility: **{volatility:.2f}%**.")
+    insights.append(f"Approx. volatility: **{volatility:.2f}%**.")
 
     return insights
 
-def forecast_prices(df, periods=30):
-    df_temp = df.set_index("Date")["Close"]
-    model = ARIMA(df_temp, order=(5, 1, 0))
-    model_fit = model.fit()
-    forecast = model_fit.forecast(steps=periods)
-    forecast_df = pd.DataFrame({
-        "Date": pd.date_range(df["Date"].max() + pd.Timedelta(days=1), periods=periods),
-        "Forecasted_Close": forecast
-    })
-    return forecast_df
+def generate_report(df):
+    output = BytesIO()
+    report_text = "Stock Report\n\n"
+    report_text += f"Date Range: {start_date.date()} to {end_date.date()}\n"
+    report_text += f"Total Days: {len(df)}\n"
+    report_text += "\n".join(generate_insights(df))
+    output.write(report_text.encode())
+    output.seek(0)
+    return output
 
-# Tabs for layout
 with st.container():
-    tab1, tab2, tab3 = st.tabs(["Visualizations", "Insights", "Forecast & Report"])
+    tab1, tab2, tab3 = st.tabs(["Visualizations", "Insights", "Report Generator"])
 
     with tab1:
         col1, col2 = st.columns([2, 1])
 
         with col1:
-            st.subheader("Line Chart - Close Price")
-            fig = px.line(df_filtered, x="Date", y="Close", title="Stock Price Over Time")
+            st.subheader("Line Chart")
+            fig = px.line(df, x="Date", y="Close", title="Stock Price Over Time", color_discrete_sequence=["blue"])
             st.plotly_chart(fig, use_container_width=True)
 
             st.subheader("Candlestick Chart")
-            fig_candle = go.Figure(data=[go.Candlestick(x=df_filtered["Date"], open=df_filtered["Open"],
-                                                        high=df_filtered["High"], low=df_filtered["Low"],
-                                                        close=df_filtered["Close"])])
-            fig_candle.update_layout(xaxis_title="Date", yaxis_title="Price")
+            fig_candle = go.Figure(data=[go.Candlestick(x=df["Date"], open=df["Open"],
+                                                        high=df["High"], low=df["Low"],
+                                                        close=df["Close"])])
             st.plotly_chart(fig_candle, use_container_width=True)
 
-            st.subheader("Moving Averages and Bollinger Bands")
-            df_filtered['SMA_20'] = df_filtered['Close'].rolling(window=20).mean()
-            df_filtered['Upper_BB'] = df_filtered['SMA_20'] + 2 * df_filtered['Close'].rolling(window=20).std()
-            df_filtered['Lower_BB'] = df_filtered['SMA_20'] - 2 * df_filtered['Close'].rolling(window=20).std()
-            fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
-                             title="Technical Indicators")
+            st.subheader("Moving Averages & Bollinger Bands")
+            df['SMA_20'] = df['Close'].rolling(window=20).mean()
+            df['Upper_BB'] = df['SMA_20'] + 2 * df['Close'].rolling(window=20).std()
+            df['Lower_BB'] = df['SMA_20'] - 2 * df['Close'].rolling(window=20).std()
+            fig_ma = px.line(df, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
+                             title="Moving Averages & Bollinger Bands")
             st.plotly_chart(fig_ma, use_container_width=True)
 
-            st.subheader("Daily Returns Distribution")
-            df_filtered["Daily_Return"] = df_filtered["Close"].pct_change()
-            fig_hist = px.histogram(df_filtered.dropna(), x="Daily_Return", nbins=50, title="Histogram of Daily Returns")
-            st.plotly_chart(fig_hist, use_container_width=True)
-
         with col2:
-            st.subheader("Latest Data Preview")
-            st.dataframe(df_filtered[['Date', 'Open', 'High', 'Low', 'Close']].tail(10), use_container_width=True)
-
-            st.subheader("Summary")
-            start_price = df_filtered["Close"].iloc[0]
-            end_price = df_filtered["Close"].iloc[-1]
-            delta = end_price - start_price
-            st.metric("Start Price", f"{start_price:.2f} USD")
-            st.metric("End Price", f"{end_price:.2f} USD")
-            st.metric("Change (%)", f"{(delta / start_price) * 100:.2f}%")
+            st.subheader("Data Preview")
+            st.dataframe(df[['Date', 'Open', 'High', 'Low', 'Close']].tail(10), use_container_width=True)
 
     with tab2:
         st.subheader("Stock Insights")
-        for insight in generate_insights(df_filtered):
+        for insight in generate_insights(df):
             st.markdown(insight)
-        st.markdown("---")
-        st.markdown("Note: All data is simulated for demonstration purposes only.")
 
     with tab3:
-        st.subheader("Forecast Future Prices (Next 30 Days)")
-        forecast_df = forecast_prices(df_filtered, periods=30)
-        fig_forecast = px.line(forecast_df, x="Date", y="Forecasted_Close", title="30-Day Stock Price Forecast")
-        st.plotly_chart(fig_forecast, use_container_width=True)
-
-        st.subheader("Download Data")
-        csv = df_filtered.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV of Current Analysis", csv, f"{selected_stock}_analysis.csv", "text/csv")
+        st.subheader("Generate Report")
+        if st.button("Generate Text Report"):
+            report = generate_report(df)
+            st.download_button(label="Download Report", data=report, file_name=f"{selected_stock}_report.txt", mime="text/plain")
+        st.markdown("Note: This report is based on real-time data fetched using yfinance.")
