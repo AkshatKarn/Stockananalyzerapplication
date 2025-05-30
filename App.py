@@ -3,21 +3,18 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
-from fpdf import FPDF
-import tempfile
-import os
+from statsmodels.tsa.arima.model import ARIMA
+import warnings
+warnings.filterwarnings("ignore")
 
 st.set_page_config(page_title="AI-Powered Stock Analyzer", layout="wide")
 st.title("AI-Powered Stock Analyzer")
-st.write("Analyze stocks, visualize trends, and get AI-driven insights!")
+st.write("Analyze stocks, visualize trends, get AI-driven insights!")
 
 stocks = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "NFLX", "NVDA", "META", "IBM", "INTC", "AMD", "BABA",
           "ORCL", "PYPL", "DIS", "PEP", "KO", "CSCO", "UBER", "LYFT"]
 
-st.sidebar.header("Stock Selection & Customization")
-menu_option = st.sidebar.radio("Menu", ["Stock Analysis", "Stock Comparison"])
-
-selected_stocks = st.sidebar.multiselect("Select Stocks", stocks, default=["AAPL"])
+menu = st.sidebar.radio("Menu", ["Stock Analysis", "Stock Comparison"])
 
 @st.cache_data
 def load_data(stock):
@@ -36,10 +33,8 @@ def load_data(stock):
 st.sidebar.header("Select Date Range")
 min_date = pd.to_datetime("2020-01-01")
 max_date = pd.to_datetime("2026-12-31")
-
 start_date = st.sidebar.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
 end_date = st.sidebar.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
-
 start_date = pd.to_datetime(start_date)
 end_date = pd.to_datetime(end_date)
 
@@ -71,104 +66,111 @@ def generate_insights(df):
 
     return insights, recommendation
 
-def create_pdf_report(insights, df, stock):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.cell(0, 10, f"Report for {stock}", ln=True, align='C')
-    pdf.ln(10)
-    for insight in insights:
-        pdf.multi_cell(0, 10, insight.replace("**", ""))
-    pdf.ln(10)
-    pdf.multi_cell(0, 10, "Summary Table:")
-    for index, row in df.iterrows():
-        pdf.cell(0, 10, f"{row['Date'].date()} - {row['Close']:.2f} USD", ln=True)
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        pdf.output(tmp.name)
-        return tmp.name
+def arima_forecast(df):
+    df = df.set_index("Date")
+    model = ARIMA(df["Close"], order=(5, 1, 0))
+    model_fit = model.fit()
+    forecast = model_fit.forecast(steps=30)
+    forecast_index = pd.date_range(start=df.index[-1], periods=30, freq='D')
+    return forecast_index, forecast
 
-# Main App Logic
-if menu_option == "Stock Analysis":
+if menu == "Stock Analysis":
+    st.sidebar.header("Stock Selection")
+    selected_stocks = st.sidebar.multiselect("Select Stocks to Analyze", stocks, default=["AAPL"])
+
+    data_dict = {}
     for stock in selected_stocks:
         df = load_data(stock)
         df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)]
         if df_filtered.empty:
             st.error(f"No data for {stock} in the selected range.")
             continue
+        data_dict[stock] = df_filtered
 
-        st.subheader(f"Stock: {stock}")
-        tab1, tab2, tab3 = st.tabs(["Visualizations", "Insights", "Table"])
+    if data_dict:
+        for stock, df_filtered in data_dict.items():
+            st.subheader(f"Stock: {stock}")
+            tab1, tab2, tab3 = st.tabs(["Visualizations", "Table", "Insights"])
 
-        with tab1:
-            fig = px.line(df_filtered, x="Date", y="Close", title=f"{stock} Price Over Time")
-            st.plotly_chart(fig, use_container_width=True)
+            with tab1:
+                fig = px.line(df_filtered, x="Date", y="Close", title=f"{stock} Price Over Time", color_discrete_sequence=["blue"])
+                st.plotly_chart(fig, use_container_width=True)
 
-            fig_candle = go.Figure(data=[go.Candlestick(x=df_filtered["Date"], open=df_filtered["Open"],
-                                                        high=df_filtered["High"], low=df_filtered["Low"],
-                                                        close=df_filtered["Close"])])
-            fig_candle.update_layout(title="Candlestick Chart")
-            st.plotly_chart(fig_candle, use_container_width=True)
+                fig_candle = go.Figure(data=[go.Candlestick(x=df_filtered["Date"], open=df_filtered["Open"],
+                                                            high=df_filtered["High"], low=df_filtered["Low"],
+                                                            close=df_filtered["Close"])])
+                fig_candle.update_layout(title="Candlestick Chart")
+                st.plotly_chart(fig_candle, use_container_width=True)
 
-            df_filtered['SMA_20'] = df_filtered['Close'].rolling(window=20).mean()
-            df_filtered['Upper_BB'] = df_filtered['SMA_20'] + 2 * df_filtered['Close'].rolling(window=20).std()
-            df_filtered['Lower_BB'] = df_filtered['SMA_20'] - 2 * df_filtered['Close'].rolling(window=20).std()
-            fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
-                             title="Moving Averages & Bollinger Bands")
-            st.plotly_chart(fig_ma, use_container_width=True)
+                df_filtered['SMA_20'] = df_filtered['Close'].rolling(window=20).mean()
+                df_filtered['Upper_BB'] = df_filtered['SMA_20'] + 2 * df_filtered['Close'].rolling(window=20).std()
+                df_filtered['Lower_BB'] = df_filtered['SMA_20'] - 2 * df_filtered['Close'].rolling(window=20).std()
+                fig_ma = px.line(df_filtered, x="Date", y=["Close", "SMA_20", "Upper_BB", "Lower_BB"],
+                                 title="Moving Averages & Bollinger Bands")
+                st.plotly_chart(fig_ma, use_container_width=True)
 
-        with tab2:
-            insights, _ = generate_insights(df_filtered)
-            for insight in insights:
-                st.markdown(insight)
+                forecast_index, forecast = arima_forecast(df_filtered)
+                fig_forecast = go.Figure()
+                fig_forecast.add_trace(go.Scatter(x=df_filtered['Date'], y=df_filtered['Close'], name='Historical'))
+                fig_forecast.add_trace(go.Scatter(x=forecast_index, y=forecast, name='ARIMA Forecast'))
+                fig_forecast.update_layout(title="ARIMA Forecast")
+                st.plotly_chart(fig_forecast, use_container_width=True)
 
-        with tab3:
-            st.dataframe(df_filtered[['Date', 'Open', 'High', 'Low', 'Close']], use_container_width=True)
+            with tab2:
+                st.dataframe(df_filtered[['Date', 'Open', 'High', 'Low', 'Close']], use_container_width=True)
 
-        if st.button(f"Download Report for {stock}"):
-            report_path = create_pdf_report(insights, df_filtered, stock)
-            with open(report_path, "rb") as f:
-                st.download_button("Download Report", f, file_name=f"{stock}_report.pdf", mime="application/pdf")
+            with tab3:
+                insights, _ = generate_insights(df_filtered)
+                for insight in insights:
+                    st.markdown(insight)
 
-elif menu_option == "Stock Comparison":
-    st.subheader("Stock Comparison")
-    comparison_data = {}
-    comparison_results = []
+elif menu == "Stock Comparison":
+    st.sidebar.header("Stock Comparison")
+    selected_compare = st.sidebar.multiselect("Select Stocks to Compare", stocks, default=["AAPL", "GOOGL"])
 
-    for stock in selected_stocks:
+    compare_dict = {}
+    rec_scores = {"BUY": 2, "HOLD": 1, "SELL": 0}
+    for stock in selected_compare:
         df = load_data(stock)
         df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)]
         if df_filtered.empty:
-            st.warning(f"No data for {stock} in selected range.")
             continue
-        insights, recommendation = generate_insights(df_filtered)
-        comparison_data[stock] = df_filtered
-        comparison_results.append((stock, insights, recommendation))
+        compare_dict[stock] = df_filtered
 
-    fig_compare = go.Figure()
-    for stock, df_filtered in comparison_data.items():
-        fig_compare.add_trace(go.Scatter(x=df_filtered["Date"], y=df_filtered["Close"], mode='lines', name=stock))
-    fig_compare.update_layout(title="Closing Prices Comparison", xaxis_title="Date", yaxis_title="Price (USD)")
-    st.plotly_chart(fig_compare, use_container_width=True)
+    if compare_dict:
+        st.subheader("Stock Comparison: Visualizations")
+        fig_compare = go.Figure()
+        for stock, df in compare_dict.items():
+            fig_compare.add_trace(go.Scatter(x=df["Date"], y=df["Close"], mode='lines', name=stock))
+        fig_compare.update_layout(title="Closing Prices Comparison", xaxis_title="Date", yaxis_title="Price (USD)")
+        st.plotly_chart(fig_compare, use_container_width=True)
 
-    st.markdown("## Combined Insights")
-    for stock, insights, recommendation in comparison_results:
-        st.markdown(f"### {stock} — **{recommendation}**")
-        for insight in insights:
-            st.markdown(f"- {insight}")
-        st.markdown("---")
+        fig_volatility = go.Figure()
+        for stock, df in compare_dict.items():
+            volatility = df["Close"].pct_change().std() * 100
+            fig_volatility.add_trace(go.Bar(x=[stock], y=[volatility], name=stock))
+        fig_volatility.update_layout(title="Volatility Comparison")
+        st.plotly_chart(fig_volatility, use_container_width=True)
 
-    if st.button("Download Combined Report"):
-        combined_pdf = FPDF()
-        combined_pdf.add_page()
-        combined_pdf.set_font("Arial", size=12)
-        combined_pdf.cell(0, 10, "Combined Stock Comparison Report", ln=True, align='C')
-        combined_pdf.ln(10)
-        for stock, insights, _ in comparison_results:
-            combined_pdf.multi_cell(0, 10, f"{stock} Insights:")
-            for insight in insights:
-                combined_pdf.multi_cell(0, 10, insight.replace("**", ""))
-            combined_pdf.ln(5)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-            combined_pdf.output(tmp.name)
-            with open(tmp.name, "rb") as f:
-                st.download_button("Download Combined Report", f, file_name="combined_report.pdf", mime="application/pdf")
+        fig_return = go.Figure()
+        for stock, df in compare_dict.items():
+            change = df["Close"].iloc[-1] - df["Close"].iloc[0]
+            pct_change = (change / df["Close"].iloc[0]) * 100
+            fig_return.add_trace(go.Bar(x=[stock], y=[pct_change], name=stock))
+        fig_return.update_layout(title="Percentage Return Comparison")
+        st.plotly_chart(fig_return, use_container_width=True)
+
+        st.subheader("Stock Comparison: Combined Insights")
+        final_scores = {}
+        for stock, df in compare_dict.items():
+            _, recommendation = generate_insights(df)
+            final_scores[stock] = rec_scores[recommendation]
+            st.markdown(f"**{stock}**: {recommendation}")
+
+        best_stock = max(final_scores, key=final_scores.get)
+        st.success(f"Based on current analysis, the best stock to consider is: **{best_stock}**")
+
+        st.subheader("Combined Table View")
+        for stock, df in compare_dict.items():
+            st.markdown(f"### {stock}")
+            st.dataframe(df[['Date', 'Open', 'High', 'Low', 'Close']], use_container_width=True)
