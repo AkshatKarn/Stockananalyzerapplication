@@ -147,3 +147,27 @@ if menu == "Stock Analysis":
                         st.info("No gain, no loss. 📊")
                 else:
                     st.info("Enter valid stock count and purchase price to see investment summary.")
+elif menu == "Stock Comparison":
+    st.sidebar.header("Select Stocks to Compare")
+    compare_stocks = st.sidebar.multiselect("Choose at least two stocks", stocks, default=["AAPL", "GOOGL"])
+
+    if len(compare_stocks) < 2:
+        st.info("Please select at least two stocks to compare.")
+    else:
+        st.subheader("📊 Stock Closing Price Comparison")
+
+        compare_df = pd.DataFrame()
+        for stock in compare_stocks:
+            df = load_data(stock)
+            df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)]
+            df_filtered = df_filtered.set_index("Date")[["Close"]].rename(columns={"Close": stock})
+            if compare_df.empty:
+                compare_df = df_filtered
+            else:
+                compare_df = compare_df.join(df_filtered, how="outer")
+
+        compare_df = compare_df.sort_index()
+        st.line_chart(compare_df)
+
+        st.markdown("### 📄 Data Table")
+        st.dataframe(compare_df.reset_index(), use_container_width=True)
