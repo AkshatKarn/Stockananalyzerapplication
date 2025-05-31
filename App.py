@@ -148,26 +148,92 @@ if menu == "Stock Analysis":
                 else:
                     st.info("Enter valid stock count and purchase price to see investment summary.")
 elif menu == "Stock Comparison":
-    st.sidebar.header("Select Stocks to Compare")
-    compare_stocks = st.sidebar.multiselect("Choose at least two stocks", stocks, default=["AAPL", "GOOGL"])
+    st.sidebar.header("Compare Two Stocks")
+    stock1 = st.sidebar.selectbox("Select First Stock", stocks, index=0)
+    stock2 = st.sidebar.selectbox("Select Second Stock", stocks, index=1)
 
-    if len(compare_stocks) < 2:
-        st.info("Please select at least two stocks to compare.")
+    df1 = load_data(stock1)
+    df2 = load_data(stock2)
+    df1 = df1[(df1["Date"] >= start_date) & (df1["Date"] <= end_date)]
+    df2 = df2[(df2["Date"] >= start_date) & (df2["Date"] <= end_date)]
+
+    if df1.empty or df2.empty:
+        st.error("No data available for selected range.")
     else:
-        st.subheader("📊 Stock Closing Price Comparison")
+        st.subheader(f"📊 Comparison: {stock1} vs {stock2}")
 
-        compare_df = pd.DataFrame()
-        for stock in compare_stocks:
-            df = load_data(stock)
-            df_filtered = df[(df["Date"] >= start_date) & (df["Date"] <= end_date)]
-            df_filtered = df_filtered.set_index("Date")[["Close"]].rename(columns={"Close": stock})
-            if compare_df.empty:
-                compare_df = df_filtered
+        tab1, tab2, tab3 = st.tabs(["Visualizations", "Insights", "AI Suggestions"])
+
+        with tab1:
+            # Price Comparison
+            fig_comp = px.line()
+            fig_comp.add_scatter(x=df1["Date"], y=df1["Close"], name=stock1)
+            fig_comp.add_scatter(x=df2["Date"], y=df2["Close"], name=stock2)
+            fig_comp.update_layout(title=f"{stock1} vs {stock2} Closing Price")
+            st.plotly_chart(fig_comp, use_container_width=True)
+
+            # Monthly Average Comparison
+            df1["Month"] = df1["Date"].dt.to_period("M").dt.to_timestamp()
+            df2["Month"] = df2["Date"].dt.to_period("M").dt.to_timestamp()
+            df1_avg = df1.groupby("Month")["Close"].mean().reset_index()
+            df2_avg = df2.groupby("Month")["Close"].mean().reset_index()
+            df1_avg["Stock"] = stock1
+            df2_avg["Stock"] = stock2
+            combined_avg = pd.concat([df1_avg, df2_avg])
+
+            fig_avg = px.bar(combined_avg, x="Month", y="Close", color="Stock", barmode="group",
+                             title="Monthly Average Close Price Comparison")
+            st.plotly_chart(fig_avg, use_container_width=True)
+
+            # Daily Return Histogram
+            df1["Daily Return"] = df1["Close"].pct_change() * 100
+            df2["Daily Return"] = df2["Close"].pct_change() * 100
+            df1["Stock"] = stock1
+            df2["Stock"] = stock2
+            return_df = pd.concat([df1, df2])
+
+            fig_return = px.histogram(return_df.dropna(), x="Daily Return", color="Stock", nbins=50,
+                                      barmode="overlay", title="Histogram of Daily Returns")
+            st.plotly_chart(fig_return, use_container_width=True)
+
+        with tab2:
+            change1 = df1["Close"].iloc[-1] - df1["Close"].iloc[0]
+            change2 = df2["Close"].iloc[-1] - df2["Close"].iloc[0]
+            pct_change1 = (change1 / df1["Close"].iloc[0]) * 100
+            pct_change2 = (change2 / df2["Close"].iloc[0]) * 100
+            vol1 = df1["Close"].pct_change().std() * 100
+            vol2 = df2["Close"].pct_change().std() * 100
+
+            st.markdown(f"**{stock1}** changed by **{change1:.2f} USD** (**{pct_change1:.2f}%**), volatility: **{vol1:.2f}%**")
+            st.markdown(f"**{stock2}** changed by **{change2:.2f} USD** (**{pct_change2:.2f}%**), volatility: **{vol2:.2f}%**")
+
+            st.markdown(f"**Trend**: {'Uptrend' if change1 > 0 else 'Downtrend'} for {stock1}, "
+                        f"{'Uptrend' if change2 > 0 else 'Downtrend'} for {stock2}.")
+
+        with tab3:
+            def suggest_action(pct, vol):
+                if pct > 10 and vol < 2:
+                    return "BUY"
+                elif pct < -10 and vol > 2:
+                    return "SELL"
+                else:
+                    return "HOLD"
+
+            suggestion1 = suggest_action(pct_change1, vol1)
+            suggestion2 = suggest_action(pct_change2, vol2)
+
+            st.markdown(f"### 🤖 AI Suggestions for {stock1}")
+            if suggestion1 == "BUY":
+                st.success("Strong uptrend with low volatility. Consider buying.")
+            elif suggestion1 == "SELL":
+                st.warning("Significant downtrend with high volatility. Consider reducing position.")
             else:
-                compare_df = compare_df.join(df_filtered, how="outer")
+                st.info("Moderate performance. Holding might be best.")
 
-        compare_df = compare_df.sort_index()
-        st.line_chart(compare_df)
-
-        st.markdown("### 📄 Data Table")
-        st.dataframe(compare_df.reset_index(), use_container_width=True)
+            st.markdown(f"### 🤖 AI Suggestions for {stock2}")
+            if suggestion2 == "BUY":
+                st.success("Strong uptrend with low volatility. Consider buying.")
+            elif suggestion2 == "SELL":
+                st.warning("Significant downtrend with high volatility. Consider reducing position.")
+            else:
+                st.info("Moderate performance. Holding might be best.")
